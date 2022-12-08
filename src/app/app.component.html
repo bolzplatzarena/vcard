@@ -46,14 +46,22 @@
                 </div>
             </div>
         </form>
-        <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 my-4 rounded w-full" (click)="generate()">
+        <div #canvas class="tw-w-full tw-h-32"></div>
+        <button type="submit"
+                [disabled]="form.invalid"
+                [class.bg-gray-200]="form.invalid"
+                [class.pointer-events-none]="form.invalid"
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 my-4 rounded w-full"
+                (click)="generate()">
             vCard erstellen
         </button>
-    </ng-container>
-    <ng-container>
-        <div #canvas class="tw-w-full tw-h-32"></div>
-        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 my-4 rounded w-full" (click)="close()">
-            Zurück
+        <button type="button"
+                [disabled]="form.invalid"
+                [class.bg-gray-200]="form.invalid"
+                [class.pointer-events-none]="form.invalid"
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 my-4 rounded w-full"
+                (click)="download()">
+            Download
         </button>
     </ng-container>
 </div>
