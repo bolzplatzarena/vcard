@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { NgxQrcodeStylingService, Options } from 'ngx-qrcode-styling';
 import { firstValueFrom } from 'rxjs';
@@ -7,10 +7,10 @@ import { firstValueFrom } from 'rxjs';
   selector: 'app-root',
   templateUrl: './app.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: ['.ng-invalid.ng-touched { border-color: red }']
+  styles: ['.ng-invalid.ng-touched { border-color: red }'],
 })
-export class AppComponent {
-  @ViewChild("canvas", { static: false }) canvas!: ElementRef;
+export class AppComponent implements OnInit {
+  @ViewChild('canvas', { static: false }) canvas!: ElementRef;
   readonly form = this.formBuilder.nonNullable.group({
     givenName: ['', [Validators.required]],
     familyName: ['', [Validators.required]],
@@ -24,16 +24,16 @@ export class AppComponent {
     height: 300,
     margin: 50,
     dotsOptions: {
-      color: "#1977f3",
-      type: "dots"
+      color: '#1977f3',
+      type: 'dots',
     },
     backgroundOptions: {
-      color: "#ffffff",
+      color: '#ffffff',
     },
     imageOptions: {
-      crossOrigin: "anonymous",
-      margin: 0
-    }
+      crossOrigin: 'anonymous',
+      margin: 0,
+    },
   };
 
   readonly qrDownloadConfig: Options = {
@@ -41,16 +41,16 @@ export class AppComponent {
     height: screen.height,
     margin: 50,
     dotsOptions: {
-      color: "#1977f3",
-      type: "dots"
+      color: '#1977f3',
+      type: 'dots',
     },
     backgroundOptions: {
-      color: "#ffffff",
+      color: '#ffffff',
     },
     imageOptions: {
-      crossOrigin: "anonymous",
-      margin: 0
-    }
+      crossOrigin: 'anonymous',
+      margin: 0,
+    },
   };
 
   qrData?: string;
@@ -58,10 +58,21 @@ export class AppComponent {
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly qrcode: NgxQrcodeStylingService,
-  ) {}
+  ) {
+  }
+
+  ngOnInit(): void {
+    const data = localStorage.getItem('data');
+    if (data) {
+      this.form.patchValue(JSON.parse(data));
+    }
+    this.form.valueChanges.subscribe(value => {
+      localStorage.setItem('data', JSON.stringify(value));
+    });
+  }
 
   generate(preview = true): Promise<void> {
-    if(this.form.invalid) {
+    if (this.form.invalid) {
       return Promise.reject();
     }
 
@@ -76,14 +87,14 @@ END:VCARD`;
     return firstValueFrom(this.qrcode.create({
         ...(preview ? this.qrConfig : this.qrDownloadConfig),
         data: vcard,
-        width: this.canvas.nativeElement.clientWidth
+        width: this.canvas.nativeElement.clientWidth,
       },
-      this.canvas.nativeElement
+      this.canvas.nativeElement,
     ));
-   }
+  }
 
-   async download(): Promise<void> {
-     await this.generate(false);
-     this.qrcode.download("vcard.png", this.canvas.nativeElement).subscribe();
-   }
+  async download(): Promise<void> {
+    await this.generate(false);
+    this.qrcode.download('vcard.png', this.canvas.nativeElement).subscribe();
+  }
 }
