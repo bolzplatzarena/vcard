@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
+import { fabric } from 'fabric';
 import { NgxQrcodeStylingService, Options } from 'ngx-qrcode-styling';
 import { firstValueFrom } from 'rxjs';
 
@@ -10,7 +11,8 @@ import { firstValueFrom } from 'rxjs';
   styles: ['.ng-invalid.ng-touched { border-color: red }'],
 })
 export class AppComponent implements OnInit {
-  @ViewChild('canvas', { static: false }) canvas!: ElementRef;
+  @ViewChild('canvas', { static: false }) canvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('fullcanvas', { static: false }) fullCanvas!: ElementRef<HTMLCanvasElement>;
   readonly form = this.formBuilder.nonNullable.group({
     givenName: ['', [Validators.required]],
     familyName: ['', [Validators.required]],
@@ -20,15 +22,15 @@ export class AppComponent implements OnInit {
     address: [''],
   });
   readonly qrConfig: Options = {
-    width: 300,
-    height: 300,
-    margin: 50,
+    width: 200,
+    height: 200,
+    margin: 0,
     dotsOptions: {
       color: '#1977f3',
       type: 'dots',
     },
     backgroundOptions: {
-      color: '#ffffff',
+      color: 'transparent',
     },
     imageOptions: {
       crossOrigin: 'anonymous',
@@ -36,24 +38,7 @@ export class AppComponent implements OnInit {
     },
   };
 
-  readonly qrDownloadConfig: Options = {
-    width: screen.width,
-    height: screen.height,
-    margin: 50,
-    dotsOptions: {
-      color: '#1977f3',
-      type: 'dots',
-    },
-    backgroundOptions: {
-      color: '#ffffff',
-    },
-    imageOptions: {
-      crossOrigin: 'anonymous',
-      margin: 0,
-    },
-  };
-
-  qrData?: string;
+  advancedEnabled = false;
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -71,7 +56,7 @@ export class AppComponent implements OnInit {
     });
   }
 
-  generate(preview = true): Promise<void> {
+  generate(): Promise<void> {
     if (this.form.invalid) {
       return Promise.reject();
     }
@@ -85,16 +70,31 @@ FN:${person.givenName} ${person.familyName}
 END:VCARD`;
 
     return firstValueFrom(this.qrcode.create({
-        ...(preview ? this.qrConfig : this.qrDownloadConfig),
+        ...this.qrConfig,
         data: vcard,
-        width: this.canvas.nativeElement.clientWidth,
       },
       this.canvas.nativeElement,
     ));
   }
 
   async download(): Promise<void> {
-    await this.generate(false);
-    this.qrcode.download('vcard.png', this.canvas.nativeElement).subscribe();
+    //await this.generate();
+    //this.qrcode.download(this.canvas.nativeElement, 'vcard.png').subscribe();
+  }
+
+  advanced(): void {
+    void this.generate();
+    this.advancedEnabled = !this.advancedEnabled;
+
+    const fullCanvas = new fabric.Canvas(this.fullCanvas.nativeElement, {
+      width: screen.width,
+      height: screen.height,
+      fill: '#ffffff',
+    });
+    window.setTimeout(() => {
+      fabric.Image.fromURL((this.canvas.nativeElement.firstChild as HTMLCanvasElement).toDataURL(), (img) => {
+        fullCanvas.add(img);
+      });
+    }, 60);
   }
 }
