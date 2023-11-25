@@ -1,13 +1,17 @@
-import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
-
 import { importProvidersFrom } from '@angular/core';
-import { AppComponent } from './app/app.component';
-import { NgxQrcodeStylingModule } from 'ngx-qrcode-styling';
 import { ReactiveFormsModule } from '@angular/forms';
+import { bootstrapApplication, BrowserModule } from '@angular/platform-browser';
+import { NgxQrcodeStylingModule } from 'ngx-qrcode-styling';
 import { AppRoutingModule } from './app/app-routing.module';
-import { BrowserModule, bootstrapApplication } from '@angular/platform-browser';
+import { AppComponent } from './app/app.component';
 
 bootstrapApplication(AppComponent, {
-    providers: [importProvidersFrom(BrowserModule, AppRoutingModule, ReactiveFormsModule, NgxQrcodeStylingModule)]
-})
-  .catch(err => console.error(err));
+  providers: [
+    importProvidersFrom(
+      BrowserModule,
+      AppRoutingModule,
+      ReactiveFormsModule,
+      NgxQrcodeStylingModule,
+    ),
+  ],
+}).catch(err => console.error(err));
