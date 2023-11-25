@@ -8,11 +8,19 @@
       "files": [
         "*.ts"
       ],
+      "parserOptions": {
+        "project": [
+          "tsconfig.json"
+        ],
+        "createDefaultProgram": true
+      },
       "extends": [
-        "eslint:recommended",
         "plugin:@typescript-eslint/recommended",
         "plugin:@angular-eslint/recommended",
         "plugin:@angular-eslint/template/process-inline-templates"
+      ],
+      "plugins": [
+        "function-name"
       ],
       "rules": {
         "@angular-eslint/directive-selector": [
@@ -30,7 +38,36 @@
             "prefix": "app",
             "style": "kebab-case"
           }
-        ]
+        ],
+        "eqeqeq": [
+          "error",
+          "always"
+        ],
+        "function-name/starts-with-verb": [
+          "error",
+          {
+            "whitelist": [
+              "ng",
+              "by",
+              "migrate"
+            ]
+          }
+        ],
+        "max-params": [
+          "error",
+          3
+        ],
+        "no-console": "error",
+        "no-nested-ternary": "error",
+        "no-shadow": "off",
+        "@typescript-eslint/await-thenable": "error",
+        "@typescript-eslint/explicit-function-return-type": "error",
+        "@typescript-eslint/no-explicit-any": 0,
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-shadow": "error",
+        "@typescript-eslint/no-unnecessary-condition": "error",
+        "require-await": "off",
+        "@typescript-eslint/require-await": "error"
       }
     },
     {
@@ -38,10 +75,20 @@
         "*.html"
       ],
       "extends": [
-        "plugin:@angular-eslint/template/recommended",
-        "plugin:@angular-eslint/template/accessibility"
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@angular-eslint/template/recommended"
       ],
-      "rules": {}
+      "rules": {
+        "@angular-eslint/template/no-positive-tabindex": 2,
+        "@angular-eslint/template/click-events-have-key-events": 2,
+        "@angular-eslint/template/mouse-events-have-key-events": 2,
+        "@angular-eslint/template/no-autofocus": 2,
+        "@angular-eslint/template/no-distracting-elements": 2,
+        "@angular-eslint/template/alt-text": 2,
+        "@angular-eslint/template/elements-content": 2,
+        "@angular-eslint/template/table-scope": 2,
+        "@angular-eslint/template/valid-aria": 2
+      }
     }
   ]
 }
