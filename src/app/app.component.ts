@@ -1,14 +1,16 @@
 import { ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, Validators } from '@angular/forms';
+import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { fabric } from 'fabric';
 import { NgxQrcodeStylingService, Options } from 'ngx-qrcode-styling';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: ['.ng-invalid.ng-touched { border-color: red }'],
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    styles: ['.ng-invalid.ng-touched { border-color: red }'],
+    standalone: true,
+    imports: [ReactiveFormsModule],
 })
 export class AppComponent implements OnInit {
   @ViewChild('canvas', { static: false }) canvas!: ElementRef<HTMLCanvasElement>;
