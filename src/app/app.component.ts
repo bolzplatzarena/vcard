@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { fabric } from 'fabric';
 import { NgxQrcodeStylingService, Options } from 'ngx-qrcode-styling';
 import { firstValueFrom } from 'rxjs';
@@ -9,6 +9,8 @@ import { firstValueFrom } from 'rxjs';
   templateUrl: './app.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: ['.ng-invalid.ng-touched { border-color: red }'],
+  standalone: true,
+  imports: [ReactiveFormsModule],
 })
 export class AppComponent implements OnInit {
   @ViewChild('canvas', { static: false }) canvas!: ElementRef<HTMLCanvasElement>;
@@ -82,7 +84,7 @@ END:VCARD`;
     //this.qrcode.download(this.canvas.nativeElement, 'vcard.png').subscribe();
   }
 
-  advanced(): void {
+  generateAdvanced(): void {
     void this.generate();
     this.advancedEnabled = !this.advancedEnabled;
 
