@@ -1,21 +1,25 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { fabric } from 'fabric';
+import { ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Canvas as FabricCanvas, FabricImage } from 'fabric';
 import { NgxQrcodeStylingService, Options } from 'ngx-qrcode-styling';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: ['.ng-invalid.ng-touched { border-color: red }'],
-  standalone: true,
-  imports: [ReactiveFormsModule],
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    styles: ['.ng-invalid.ng-touched { border-color: red }'],
+    standalone: true,
+    imports: [ReactiveFormsModule]
 })
 export class AppComponent implements OnInit {
   @ViewChild('canvas', { static: false }) canvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('fullcanvas', { static: false }) fullCanvas!: ElementRef<HTMLCanvasElement>;
-  readonly form = this.formBuilder.nonNullable.group({
+
+  private readonly formBuilder = inject(NonNullableFormBuilder);
+  private readonly qrcode = inject(NgxQrcodeStylingService);
+
+  readonly form = this.formBuilder.group({
     givenName: ['', [Validators.required]],
     familyName: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
@@ -40,13 +44,7 @@ export class AppComponent implements OnInit {
     },
   };
 
-  advancedEnabled = false;
-
-  constructor(
-    private readonly formBuilder: FormBuilder,
-    private readonly qrcode: NgxQrcodeStylingService,
-  ) {
-  }
+  readonly advancedEnabled = signal(false);
 
   ngOnInit(): void {
     const data = localStorage.getItem('data');
@@ -80,21 +78,21 @@ END:VCARD`;
   }
 
   async download(): Promise<void> {
-    //await this.generate();
-    //this.qrcode.download(this.canvas.nativeElement, 'vcard.png').subscribe();
+    await this.generate();
   }
 
   generateAdvanced(): void {
     void this.generate();
-    this.advancedEnabled = !this.advancedEnabled;
+    this.advancedEnabled.update(v => !v);
 
-    const fullCanvas = new fabric.Canvas(this.fullCanvas.nativeElement, {
+    const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, {
       width: screen.width,
       height: screen.height,
-      fill: '#ffffff',
+      backgroundColor: '#ffffff',
     });
     window.setTimeout(() => {
-      fabric.Image.fromURL((this.canvas.nativeElement.firstChild as HTMLCanvasElement).toDataURL(), (img) => {
+      const dataUrl = (this.canvas.nativeElement.firstChild as HTMLCanvasElement).toDataURL();
+      void FabricImage.fromURL(dataUrl).then(img => {
         fullCanvas.add(img);
       });
     }, 60);
