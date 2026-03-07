@@ -1,18 +1,14 @@
-import { importProvidersFrom } from '@angular/core';
-import { ReactiveFormsModule } from '@angular/forms';
-import { bootstrapApplication, BrowserModule } from '@angular/platform-browser';
+import { importProvidersFrom, provideZoneChangeDetection } from '@angular/core';
+import { bootstrapApplication } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
 import { NgxQrcodeStylingModule } from 'ngx-qrcode-styling';
-import { AppRoutingModule } from './app/app-routing.module';
 import { AppComponent } from './app/app.component';
 
 bootstrapApplication(AppComponent, {
   providers: [
-    importProvidersFrom(
-      BrowserModule,
-      AppRoutingModule,
-      ReactiveFormsModule,
-      NgxQrcodeStylingModule,
-    ),
+    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideRouter([]),
+    importProvidersFrom(NgxQrcodeStylingModule),
   ],
 // eslint-disable-next-line no-console
 }).catch(err => console.error(err));
