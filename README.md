@@ -1,14 +1,25 @@
-# Vcard
+# vCard
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 15.0.0-rc.2.
+Eine Angular-Webanwendung zur Erstellung von vCards als Bilder, die als Smartphone-Sperrbildschirm-Foto verwendet werden können. Das generierte Bild enthält einen QR-Code mit allen Visitenkarten-Informationen, sodass Kontaktdaten einfach über das Sperrbildschirmfoto geteilt werden können.
+
+## Technologien
+
+- [Angular](https://angular.io/) 21.x
+- [Tailwind CSS](https://tailwindcss.com/) 3.x
+- [Capacitor](https://capacitorjs.com/) 7.x (Android & iOS)
+- [Fabric.js](http://fabricjs.com/) 7.x – Canvas-Rendering für das Bild
+- [ngx-qrcode-styling](https://www.npmjs.com/package/ngx-qrcode-styling) – QR-Code-Generierung
+
+## Funktionsweise
+
+1. Visitenkarten-Daten (Name, Telefon, E-Mail, Adresse usw.) eingeben
+2. Ein Bild wird generiert, das einen QR-Code mit allen vCard-Informationen enthält
+3. Das Bild kann als Smartphone-Sperrbildschirm-Foto gesetzt werden
+4. Andere Personen können den QR-Code direkt vom Sperrbildschirm scannen und den Kontakt speichern
 
 ## Development server
 
 Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
-
-## Code scaffolding
-
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
 
 ## Build
 
@@ -17,10 +28,6 @@ Run `ng build` to build the project. The build artifacts will be stored in the `
 ## Running unit tests
 
 Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
 
 ## Further help
 
