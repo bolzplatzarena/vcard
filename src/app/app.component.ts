@@ -13,8 +13,10 @@ import { firstValueFrom } from 'rxjs';
     imports: [ReactiveFormsModule]
 })
 export class AppComponent implements OnInit {
-  @ViewChild('canvas', { static: false }) canvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('canvas', { static: false }) canvas!: ElementRef<HTMLElement>;
   @ViewChild('fullcanvas', { static: false }) fullCanvas!: ElementRef<HTMLCanvasElement>;
+
+  private fullFabricCanvas?: FabricCanvas;
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly qrcode = inject(NgxQrcodeStylingService);
@@ -63,11 +65,27 @@ export class AppComponent implements OnInit {
 
     const person = this.form.getRawValue();
 
-    const vcard = `BEGIN:VCARD
-VERSION:3.0
-N:${person.familyName};${person.givenName}
-FN:${person.givenName} ${person.familyName}
-END:VCARD`;
+    const lines = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      `N:${person.familyName};${person.givenName}`,
+      `FN:${person.givenName} ${person.familyName}`,
+    ];
+    if (person.email) {
+      lines.push(`EMAIL:${person.email}`);
+    }
+    if (person.phone) {
+      lines.push(`TEL;TYPE=WORK,VOICE:${person.phone}`);
+    }
+    if (person.mobile) {
+      lines.push(`TEL;TYPE=CELL:${person.mobile}`);
+    }
+    if (person.address) {
+      // ADR format: post-office-box;extended-address;street-address;locality;region;postal-code;country-name
+      lines.push(`ADR;TYPE=HOME:;;${person.address};;;;`);
+    }
+    lines.push('END:VCARD');
+    const vcard = lines.join('\r\n');
 
     return firstValueFrom(this.qrcode.create({
         ...this.qrConfig,
@@ -79,22 +97,56 @@ END:VCARD`;
 
   async download(): Promise<void> {
     await this.generate();
+    const canvasEl = this.canvas.nativeElement.firstChild;
+    if (canvasEl instanceof HTMLCanvasElement) {
+      const dataUrl = canvasEl.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = 'vcard-qr.png';
+      link.click();
+    }
   }
 
-  generateAdvanced(): void {
-    void this.generate();
-    this.advancedEnabled.update(v => !v);
+  async generateAdvanced(): Promise<void> {
+    if (this.form.invalid) {
+      return;
+    }
+    await this.generate();
+    void this.fullFabricCanvas?.dispose();
+    this.advancedEnabled.set(true);
 
     const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, {
       width: screen.width,
       height: screen.height,
       backgroundColor: '#ffffff',
     });
-    window.setTimeout(() => {
-      const dataUrl = (this.canvas.nativeElement.firstChild as HTMLCanvasElement).toDataURL();
-      void FabricImage.fromURL(dataUrl).then(img => {
-        fullCanvas.add(img);
+    const canvasEl = this.canvas.nativeElement.firstChild;
+    if (canvasEl instanceof HTMLCanvasElement) {
+      const dataUrl = canvasEl.toDataURL();
+      const img = await FabricImage.fromURL(dataUrl);
+      img.set({
+        left: (screen.width - img.width) / 2,
+        top: (screen.height - img.height) / 2,
       });
-    }, 60);
+      fullCanvas.add(img);
+      fullCanvas.renderAll();
+    }
+    this.fullFabricCanvas = fullCanvas;
+  }
+
+  downloadAdvanced(): void {
+    if (this.fullFabricCanvas) {
+      const dataUrl = this.fullFabricCanvas.toDataURL({ format: 'png', multiplier: 1 });
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = 'vcard-wallpaper.png';
+      link.click();
+    }
+  }
+
+  closeAdvanced(): void {
+    this.advancedEnabled.set(false);
+    void this.fullFabricCanvas?.dispose();
+    this.fullFabricCanvas = undefined;
   }
 }
