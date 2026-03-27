@@ -9,7 +9,6 @@ import { firstValueFrom } from 'rxjs';
     templateUrl: './app.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     styles: ['.ng-invalid.ng-touched { border-color: red }'],
-    standalone: true,
     imports: [ReactiveFormsModule]
 })
 export class AppComponent implements OnInit {
@@ -21,7 +20,7 @@ export class AppComponent implements OnInit {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly qrcode = inject(NgxQrcodeStylingService);
 
-  readonly form = this.formBuilder.group({
+  protected readonly form = this.formBuilder.group({
     givenName: ['', [Validators.required]],
     familyName: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
@@ -29,7 +28,7 @@ export class AppComponent implements OnInit {
     mobile: ['', [Validators.required]],
     address: [''],
   });
-  readonly qrConfig: Options = {
+  protected readonly qrConfig: Options = {
     width: 200,
     height: 200,
     margin: 0,
@@ -46,7 +45,7 @@ export class AppComponent implements OnInit {
     },
   };
 
-  readonly advancedEnabled = signal(false);
+  protected readonly advancedEnabled = signal(false);
 
   ngOnInit(): void {
     const data = localStorage.getItem('data');
@@ -58,7 +57,7 @@ export class AppComponent implements OnInit {
     });
   }
 
-  generate(): Promise<void> {
+  protected generate(): Promise<void> {
     if (this.form.invalid) {
       return Promise.reject();
     }
@@ -95,7 +94,7 @@ export class AppComponent implements OnInit {
     ));
   }
 
-  async download(): Promise<void> {
+  protected async download(): Promise<void> {
     await this.generate();
     const canvasEl = this.canvas.nativeElement.firstChild;
     if (canvasEl instanceof HTMLCanvasElement) {
@@ -107,7 +106,7 @@ export class AppComponent implements OnInit {
     }
   }
 
-  async generateAdvanced(): Promise<void> {
+  protected async generateAdvanced(): Promise<void> {
     if (this.form.invalid) {
       return;
     }
@@ -134,7 +133,7 @@ export class AppComponent implements OnInit {
     this.fullFabricCanvas = fullCanvas;
   }
 
-  downloadAdvanced(): void {
+  protected downloadAdvanced(): void {
     if (this.fullFabricCanvas) {
       const dataUrl = this.fullFabricCanvas.toDataURL({ format: 'png', multiplier: 1 });
       const link = document.createElement('a');
@@ -144,7 +143,7 @@ export class AppComponent implements OnInit {
     }
   }
 
-  closeAdvanced(): void {
+  protected closeAdvanced(): void {
     this.advancedEnabled.set(false);
     void this.fullFabricCanvas?.dispose();
     this.fullFabricCanvas = undefined;
