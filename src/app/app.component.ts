@@ -14,6 +14,7 @@ import { firstValueFrom } from 'rxjs';
 export class AppComponent implements OnInit {
   @ViewChild('canvas', { static: false }) canvas!: ElementRef<HTMLElement>;
   @ViewChild('fullcanvas', { static: false }) fullCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('backgroundInput', { static: false }) backgroundInput!: ElementRef<HTMLInputElement>;
 
   private fullFabricCanvas?: FabricCanvas;
 
@@ -106,31 +107,82 @@ export class AppComponent implements OnInit {
     }
   }
 
-  protected async generateAdvanced(): Promise<void> {
+  protected openBackgroundPicker(): void {
+    if (this.form.invalid) {
+      return;
+    }
+    this.backgroundInput.nativeElement.click();
+  }
+
+  protected async onBackgroundSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      input.value = '';
+      return;
+    }
+
+    await this.generateAdvanced(file);
+    input.value = '';
+  }
+
+  protected async generateAdvanced(backgroundFile: File): Promise<void> {
     if (this.form.invalid) {
       return;
     }
     await this.generate();
+
+    const backgroundDataUrl = await this.readFileAsDataUrl(backgroundFile);
+    const background = await FabricImage.fromURL(backgroundDataUrl);
+    const width = background.width;
+    const height = background.height;
+
+    const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, {
+      width,
+      height,
+      backgroundColor: '#ffffff',
+    });
     void this.fullFabricCanvas?.dispose();
     this.advancedEnabled.set(true);
 
-    const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, {
-      width: screen.width,
-      height: screen.height,
-      backgroundColor: '#ffffff',
+    background.set({
+      left: 0,
+      top: 0,
+      selectable: false,
+      evented: false,
     });
+    fullCanvas.add(background);
+
     const canvasEl = this.canvas.nativeElement.firstChild;
     if (canvasEl instanceof HTMLCanvasElement) {
       const dataUrl = canvasEl.toDataURL();
-      const img = await FabricImage.fromURL(dataUrl);
-      img.set({
-        left: (screen.width - img.width) / 2,
-        top: (screen.height - img.height) / 2,
+      const qrImage = await FabricImage.fromURL(dataUrl);
+      qrImage.set({
+        left: (width - qrImage.width) / 2,
+        top: (height - qrImage.height) / 2,
       });
-      fullCanvas.add(img);
+      fullCanvas.add(qrImage);
       fullCanvas.renderAll();
     }
     this.fullFabricCanvas = fullCanvas;
+  }
+
+  private readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (): void => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+          return;
+        }
+        reject(new Error('Datei konnte nicht gelesen werden.'));
+      };
+      reader.onerror = (): void => reject(new Error('Datei konnte nicht gelesen werden.'));
+      reader.readAsDataURL(file);
+    });
   }
 
   protected downloadAdvanced(): void {

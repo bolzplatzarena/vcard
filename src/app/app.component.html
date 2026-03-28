@@ -75,7 +75,7 @@
               type="submit">
         vCard erstellen
       </button>
-      <button (click)="generateAdvanced()"
+      <button (click)="openBackgroundPicker()"
               [class.bg-gray-200]="form.invalid"
               [class.pointer-events-none]="form.invalid"
               [disabled]="form.invalid"
@@ -83,6 +83,11 @@
               type="button">
         Hintergrundbild erstellen
       </button>
+      <input #backgroundInput
+             (change)="onBackgroundSelected($event)"
+             accept="image/*"
+             class="hidden"
+             type="file">
       <button (click)="download()"
               [class.bg-gray-200]="form.invalid"
               [class.pointer-events-none]="form.invalid"
