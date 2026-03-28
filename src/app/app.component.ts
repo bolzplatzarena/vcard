@@ -9,17 +9,19 @@ import { firstValueFrom } from 'rxjs';
     templateUrl: './app.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     styles: ['.ng-invalid.ng-touched { border-color: red }'],
-    standalone: true,
     imports: [ReactiveFormsModule]
 })
 export class AppComponent implements OnInit {
-  @ViewChild('canvas', { static: false }) canvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('canvas', { static: false }) canvas!: ElementRef<HTMLElement>;
   @ViewChild('fullcanvas', { static: false }) fullCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('backgroundInput', { static: false }) backgroundInput!: ElementRef<HTMLInputElement>;
+
+  private fullFabricCanvas?: FabricCanvas;
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly qrcode = inject(NgxQrcodeStylingService);
 
-  readonly form = this.formBuilder.group({
+  protected readonly form = this.formBuilder.group({
     givenName: ['', [Validators.required]],
     familyName: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
@@ -27,7 +29,7 @@ export class AppComponent implements OnInit {
     mobile: ['', [Validators.required]],
     address: [''],
   });
-  readonly qrConfig: Options = {
+  protected readonly qrConfig: Options = {
     width: 200,
     height: 200,
     margin: 0,
@@ -44,7 +46,7 @@ export class AppComponent implements OnInit {
     },
   };
 
-  readonly advancedEnabled = signal(false);
+  protected readonly advancedEnabled = signal(false);
 
   ngOnInit(): void {
     const data = localStorage.getItem('data');
@@ -56,18 +58,34 @@ export class AppComponent implements OnInit {
     });
   }
 
-  generate(): Promise<void> {
+  protected generate(): Promise<void> {
     if (this.form.invalid) {
       return Promise.reject();
     }
 
     const person = this.form.getRawValue();
 
-    const vcard = `BEGIN:VCARD
-VERSION:3.0
-N:${person.familyName};${person.givenName}
-FN:${person.givenName} ${person.familyName}
-END:VCARD`;
+    const lines = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      `N:${person.familyName};${person.givenName}`,
+      `FN:${person.givenName} ${person.familyName}`,
+    ];
+    if (person.email) {
+      lines.push(`EMAIL:${person.email}`);
+    }
+    if (person.phone) {
+      lines.push(`TEL;TYPE=WORK,VOICE:${person.phone}`);
+    }
+    if (person.mobile) {
+      lines.push(`TEL;TYPE=CELL:${person.mobile}`);
+    }
+    if (person.address) {
+      // ADR format: post-office-box;extended-address;street-address;locality;region;postal-code;country-name
+      lines.push(`ADR;TYPE=HOME:;;${person.address};;;;`);
+    }
+    lines.push('END:VCARD');
+    const vcard = lines.join('\r\n');
 
     return firstValueFrom(this.qrcode.create({
         ...this.qrConfig,
@@ -77,24 +95,109 @@ END:VCARD`;
     ));
   }
 
-  async download(): Promise<void> {
+  protected async download(): Promise<void> {
     await this.generate();
+    const canvasEl = this.canvas.nativeElement.firstChild;
+    if (canvasEl instanceof HTMLCanvasElement) {
+      const dataUrl = canvasEl.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = 'vcard-qr.png';
+      link.click();
+    }
   }
 
-  generateAdvanced(): void {
-    void this.generate();
-    this.advancedEnabled.update(v => !v);
+  protected openBackgroundPicker(): void {
+    if (this.form.invalid) {
+      return;
+    }
+    this.backgroundInput.nativeElement.click();
+  }
+
+  protected async onBackgroundSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      input.value = '';
+      return;
+    }
+
+    await this.generateAdvanced(file);
+    input.value = '';
+  }
+
+  protected async generateAdvanced(backgroundFile: File): Promise<void> {
+    if (this.form.invalid) {
+      return;
+    }
+    await this.generate();
+
+    const backgroundDataUrl = await this.readFileAsDataUrl(backgroundFile);
+    const background = await FabricImage.fromURL(backgroundDataUrl);
+    const width = background.width;
+    const height = background.height;
 
     const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, {
-      width: screen.width,
-      height: screen.height,
+      width,
+      height,
       backgroundColor: '#ffffff',
     });
-    window.setTimeout(() => {
-      const dataUrl = (this.canvas.nativeElement.firstChild as HTMLCanvasElement).toDataURL();
-      void FabricImage.fromURL(dataUrl).then(img => {
-        fullCanvas.add(img);
+    void this.fullFabricCanvas?.dispose();
+    this.advancedEnabled.set(true);
+
+    background.set({
+      left: 0,
+      top: 0,
+      selectable: false,
+      evented: false,
+    });
+    fullCanvas.add(background);
+
+    const canvasEl = this.canvas.nativeElement.firstChild;
+    if (canvasEl instanceof HTMLCanvasElement) {
+      const dataUrl = canvasEl.toDataURL();
+      const qrImage = await FabricImage.fromURL(dataUrl);
+      qrImage.set({
+        left: (width - qrImage.width) / 2,
+        top: (height - qrImage.height) / 2,
       });
-    }, 60);
+      fullCanvas.add(qrImage);
+      fullCanvas.renderAll();
+    }
+    this.fullFabricCanvas = fullCanvas;
+  }
+
+  private readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (): void => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+          return;
+        }
+        reject(new Error('Datei konnte nicht gelesen werden.'));
+      };
+      reader.onerror = (): void => reject(new Error('Datei konnte nicht gelesen werden.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  protected downloadAdvanced(): void {
+    if (this.fullFabricCanvas) {
+      const dataUrl = this.fullFabricCanvas.toDataURL({ format: 'png', multiplier: 1 });
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = 'vcard-wallpaper.png';
+      link.click();
+    }
+  }
+
+  protected closeAdvanced(): void {
+    this.advancedEnabled.set(false);
+    void this.fullFabricCanvas?.dispose();
+    this.fullFabricCanvas = undefined;
   }
 }
