@@ -38,6 +38,16 @@ export class AppComponent implements OnInit {
       color: '#1977f3',
       type: 'dots',
     },
+    // Finder patterns drawn as separate dots break the 1:1:3:1:1 ratio scanners look for,
+    // which fails at high resolutions; solid corners keep the code readable.
+    cornersSquareOptions: {
+      color: '#1977f3',
+      type: 'extra-rounded',
+    },
+    cornersDotOptions: {
+      color: '#1977f3',
+      type: 'dot',
+    },
     backgroundOptions: {
       color: 'transparent',
     },
