@@ -5,7 +5,7 @@ Eine Angular-Webanwendung zur Erstellung von vCards als Bilder, die als Smartpho
 ## Technologien
 
 - [Angular](https://angular.dev/) 22.x
-- [Tailwind CSS](https://tailwindcss.com/) 3.x
+- [Tailwind CSS](https://tailwindcss.com/) 4.x
 - [Capacitor](https://capacitorjs.com/) 8.x (Android & iOS)
 - [Fabric.js](https://fabricjs.com/) 7.x – Canvas-Rendering für das Bild
 - [qr-code-styling](https://www.npmjs.com/package/qr-code-styling) – QR-Code-Generierung

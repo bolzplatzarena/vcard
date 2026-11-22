@@ -4,7 +4,7 @@
   </h1>
   <div class="relative px-4 -bottom-4">
     <div
-        class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
+        class="mb-2 bg-white p-3 shadow-lg rounded-sm transition-colors border-b-2 border-transparent hover:border-pink-500">
       Erstelle deinen persönlichen QR-Code mit deinen Kontaktdaten und speichere ihn als Hintergrundbild auf deinem Smartphone.
     </div>
   </div>
@@ -12,53 +12,53 @@
     <ng-container>
       <form [formGroup]="form" class="flex-1 overflow-scroll">
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded-sm transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
             <label class="text-gray-700 text-sm font-bold mb-2" for="givenname">Vorname*</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="given-name" formControlName="givenName" id="givenname" placeholder="Max"
+            <input class="border rounded-sm py-2 px-3 text-gray-700 leading-tight focus:outline-hidden" autocomplete="given-name" formControlName="givenName" id="givenname" placeholder="Max"
                    type="text">
           </div>
         </div>
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded-sm transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
             <label class="text-gray-700 text-sm font-bold mb-2" for="name">Nachname*</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="family-name" formControlName="familyName" id="name" placeholder="Mustermann"
+            <input class="border rounded-sm py-2 px-3 text-gray-700 leading-tight focus:outline-hidden" autocomplete="family-name" formControlName="familyName" id="name" placeholder="Mustermann"
                    type="text">
           </div>
         </div>
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded-sm transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
             <label class="text-gray-700 text-sm font-bold mb-2" for="email">E-Mail*</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="email" formControlName="email" id="email"
+            <input class="border rounded-sm py-2 px-3 text-gray-700 leading-tight focus:outline-hidden" autocomplete="email" formControlName="email" id="email"
                    placeholder="max@example.com"
                    type="email">
           </div>
         </div>
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded-sm transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
             <label class="text-gray-700 text-sm font-bold mb-2" for="phone">Telefon</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="work tel" formControlName="phone" id="phone"
+            <input class="border rounded-sm py-2 px-3 text-gray-700 leading-tight focus:outline-hidden" autocomplete="work tel" formControlName="phone" id="phone"
                    placeholder="030 1234567"
                    type="tel">
           </div>
         </div>
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded-sm transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
             <label class="text-gray-700 text-sm font-bold mb-2" for="mobile">Handy-Nr.*</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="mobile tel" formControlName="mobile" id="mobile"
+            <input class="border rounded-sm py-2 px-3 text-gray-700 leading-tight focus:outline-hidden" autocomplete="mobile tel" formControlName="mobile" id="mobile"
                    placeholder="+49 170 1234567"
                    type="tel">
           </div>
         </div>
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded-sm transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
             <label class="text-gray-700 text-sm font-bold mb-2" for="address">Adresse</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="street-address" formControlName="address" id="address"
+            <input class="border rounded-sm py-2 px-3 text-gray-700 leading-tight focus:outline-hidden" autocomplete="street-address" formControlName="address" id="address"
                    placeholder="Hauptstr. 1, 12345 Berlin"
                    type="text">
           </div>
@@ -71,7 +71,7 @@
               [class.bg-gray-200]="form.invalid"
               [class.pointer-events-none]="form.invalid"
               [disabled]="form.invalid"
-              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 my-4 rounded w-full"
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 my-4 rounded-sm w-full"
               type="submit">
         vCard erstellen
       </button>
@@ -79,7 +79,7 @@
               [class.bg-gray-200]="form.invalid"
               [class.pointer-events-none]="form.invalid"
               [disabled]="form.invalid"
-              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 my-4 rounded w-full"
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 my-4 rounded-sm w-full"
               type="button">
         Hintergrundbild erstellen
       </button>
@@ -92,7 +92,7 @@
               [class.bg-gray-200]="form.invalid"
               [class.pointer-events-none]="form.invalid"
               [disabled]="form.invalid"
-              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 my-4 rounded w-full"
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 my-4 rounded-sm w-full"
               type="button">
         Download
       </button>
@@ -104,18 +104,18 @@
   <canvas #fullcanvas class="h-screen w-screen"></canvas>
   <div class="absolute top-0 left-0 right-0 flex justify-between p-4">
     <button (click)="closeAdvanced()"
-            class="bg-white text-gray-800 font-bold py-2 px-4 rounded shadow">
+            class="bg-white text-gray-800 font-bold py-2 px-4 rounded-sm shadow-sm">
       Zurück
     </button>
     <button (click)="downloadAdvanced()"
-            class="bg-blue-500 text-white font-bold py-2 px-4 rounded shadow">
+            class="bg-blue-500 text-white font-bold py-2 px-4 rounded-sm shadow-sm">
       Download
     </button>
   </div>
 </div>
 
 @if (error(); as message) {
-  <div class="fixed left-4 right-4 z-10 flex items-start gap-3 rounded bg-red-600 p-3 text-white shadow-lg"
+  <div class="fixed left-4 right-4 z-10 flex items-start gap-3 rounded-sm bg-red-600 p-3 text-white shadow-lg"
        role="alert"
        style="bottom: calc(env(safe-area-inset-bottom) + 1rem)">
     <p class="flex-1">{{ message }}</p>
