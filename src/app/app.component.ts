@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Canvas as FabricCanvas, FabricImage } from 'fabric';
+import { Canvas as FabricCanvas, FabricImage, Point } from 'fabric';
 import QRCodeStyling, { Options } from 'qr-code-styling';
 import { buildVCard, toQrData } from './vcard';
 import { saveFile } from './save-file';
@@ -110,7 +110,9 @@ export class AppComponent implements OnInit {
 
     const background = await this.loadImage(backgroundFile);
     const { width, height } = background;
-    background.set({ left: 0, top: 0, selectable: false, evented: false });
+    background.set({ selectable: false, evented: false });
+    // Fabric 7 positions objects by their center by default; anchor at the top-left corner instead.
+    background.setPositionByOrigin(new Point(0, 0), 'left', 'top');
 
     // Render the QR code at the target resolution instead of upscaling the 200px preview.
     const { size, left, top } = placeQrCode(width, height);
@@ -126,7 +128,8 @@ export class AppComponent implements OnInit {
       return;
     }
     const qrImage = await this.loadImage(png);
-    qrImage.set({ left, top, selectable: false, evented: false });
+    qrImage.set({ selectable: false, evented: false });
+    qrImage.setPositionByOrigin(new Point(left, top), 'left', 'top');
 
     await this.fullFabricCanvas?.dispose();
     const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, { width, height });
