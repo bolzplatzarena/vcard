@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ErrorHandler, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Canvas as FabricCanvas, FabricImage } from 'fabric';
-import { NgxQrcodeStylingService, Options } from 'ngx-qrcode-styling';
-import { firstValueFrom } from 'rxjs';
+import { Canvas as FabricCanvas, FabricImage, Point } from 'fabric';
+import QRCodeStyling, { Options } from 'qr-code-styling';
+import { buildVCard, Contact, toQrData } from './vcard';
+import { saveFile } from './save-file';
+import { clampQrBox, fitCanvas, placeQrCode } from './wallpaper';
 
 @Component({
     selector: 'app-root',
@@ -19,7 +21,9 @@ export class AppComponent implements OnInit {
   private fullFabricCanvas?: FabricCanvas;
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
-  private readonly qrcode = inject(NgxQrcodeStylingService);
+  private readonly errorHandler = inject(ErrorHandler);
+
+  protected readonly error = signal<string | undefined>(undefined);
 
   protected readonly form = this.formBuilder.group({
     givenName: ['', [Validators.required]],
@@ -29,13 +33,23 @@ export class AppComponent implements OnInit {
     mobile: ['', [Validators.required]],
     address: [''],
   });
-  protected readonly qrConfig: Options = {
+  protected readonly qrConfig: Partial<Options> = {
     width: 200,
     height: 200,
     margin: 0,
     dotsOptions: {
       color: '#1977f3',
       type: 'dots',
+    },
+    // Finder patterns drawn as separate dots break the 1:1:3:1:1 ratio scanners look for,
+    // which fails at high resolutions; solid corners keep the code readable.
+    cornersSquareOptions: {
+      color: '#1977f3',
+      type: 'extra-rounded',
+    },
+    cornersDotOptions: {
+      color: '#1977f3',
+      type: 'dot',
     },
     backgroundOptions: {
       color: 'transparent',
@@ -49,62 +63,67 @@ export class AppComponent implements OnInit {
   protected readonly advancedEnabled = signal(false);
 
   ngOnInit(): void {
-    const data = localStorage.getItem('data');
-    if (data) {
-      this.form.patchValue(JSON.parse(data));
+    try {
+      const data: unknown = JSON.parse(localStorage.getItem('data') ?? 'null');
+      if (data && typeof data === 'object') {
+        this.form.patchValue(data as Partial<Contact>);
+      }
+    } catch {
+      // Corrupt entry or blocked storage: start with an empty form; the next change overwrites the entry.
     }
     this.form.valueChanges.subscribe(value => {
-      localStorage.setItem('data', JSON.stringify(value));
+      try {
+        localStorage.setItem('data', JSON.stringify(value));
+      } catch {
+        // Storage full or blocked: the form keeps working, it just isn't remembered.
+      }
     });
   }
 
   protected generate(): Promise<void> {
-    if (this.form.invalid) {
-      return Promise.reject();
-    }
-
-    const person = this.form.getRawValue();
-
-    const lines = [
-      'BEGIN:VCARD',
-      'VERSION:3.0',
-      `N:${person.familyName};${person.givenName}`,
-      `FN:${person.givenName} ${person.familyName}`,
-    ];
-    if (person.email) {
-      lines.push(`EMAIL:${person.email}`);
-    }
-    if (person.phone) {
-      lines.push(`TEL;TYPE=WORK,VOICE:${person.phone}`);
-    }
-    if (person.mobile) {
-      lines.push(`TEL;TYPE=CELL:${person.mobile}`);
-    }
-    if (person.address) {
-      // ADR format: post-office-box;extended-address;street-address;locality;region;postal-code;country-name
-      lines.push(`ADR;TYPE=HOME:;;${person.address};;;;`);
-    }
-    lines.push('END:VCARD');
-    const vcard = lines.join('\r\n');
-
-    return firstValueFrom(this.qrcode.create({
-        ...this.qrConfig,
-        data: vcard,
-      },
-      this.canvas.nativeElement,
-    ));
+    return this.report('Der QR-Code konnte nicht erstellt werden. Sind die Angaben vielleicht zu lang?', () => {
+      this.showQrCode();
+    });
   }
 
-  protected async download(): Promise<void> {
-    await this.generate();
-    const canvasEl = this.canvas.nativeElement.firstChild;
-    if (canvasEl instanceof HTMLCanvasElement) {
-      const dataUrl = canvasEl.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = 'vcard-qr.png';
-      link.click();
+  protected download(): Promise<void> {
+    // The button is disabled then anyway; returning early avoids a misleading "could not save" message.
+    if (this.form.invalid) {
+      return Promise.resolve();
     }
+    return this.report('Der QR-Code konnte nicht gespeichert werden.', async () => {
+      // getRawData waits for the asynchronous drawing; reading the canvas right away can export a blank image.
+      const png = await this.showQrCode()?.getRawData('png');
+      if (!(png instanceof Blob)) {
+        throw new Error('QR code export returned no image');
+      }
+      await saveFile(png, 'vcard-qr.png');
+    });
+  }
+
+  // Shows a readable message to the user and hands the technical error to Angular's ErrorHandler.
+  private async report(message: string, action: () => void | Promise<void>): Promise<void> {
+    this.error.set(undefined);
+    try {
+      await action();
+    } catch (error) {
+      this.errorHandler.handleError(error);
+      this.error.set(message);
+    }
+  }
+
+  private showQrCode(): QRCodeStyling | undefined {
+    if (this.form.invalid) {
+      return undefined;
+    }
+    const qrCode = this.createQrCode(this.qrConfig);
+    this.canvas.nativeElement.replaceChildren();
+    qrCode.append(this.canvas.nativeElement);
+    return qrCode;
+  }
+
+  private createQrCode(config: Partial<Options>): QRCodeStyling {
+    return new QRCodeStyling({ ...config, data: toQrData(buildVCard(this.form.getRawValue())) });
   }
 
   protected openBackgroundPicker(): void {
@@ -114,85 +133,108 @@ export class AppComponent implements OnInit {
     this.backgroundInput.nativeElement.click();
   }
 
-  protected async onBackgroundSelected(event: Event): Promise<void> {
+  protected onBackgroundSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
+    // Reset right away so picking the same file again triggers another change event.
+    input.value = '';
     if (!file) {
-      return;
+      return Promise.resolve();
     }
     if (!file.type.startsWith('image/')) {
-      input.value = '';
-      return;
+      this.error.set('Bitte wähle eine Bilddatei aus.');
+      return Promise.resolve();
     }
-
-    await this.generateAdvanced(file);
-    input.value = '';
+    return this.report(
+      'Das Hintergrundbild konnte nicht erstellt werden. Bitte versuche ein anderes Bild (JPG oder PNG).',
+      () => this.generateAdvanced(file),
+    );
   }
 
-  protected async generateAdvanced(backgroundFile: File): Promise<void> {
+  private async generateAdvanced(backgroundFile: File): Promise<void> {
     if (this.form.invalid) {
       return;
     }
-    await this.generate();
 
-    const backgroundDataUrl = await this.readFileAsDataUrl(backgroundFile);
-    const background = await FabricImage.fromURL(backgroundDataUrl);
-    const width = background.width;
-    const height = background.height;
+    const background = await this.loadImage(backgroundFile);
+    const { width, height, scale: imageScale } = fitCanvas(background.width, background.height);
+    background.set({ scaleX: imageScale, scaleY: imageScale, selectable: false, evented: false });
+    // Fabric 7 positions objects by their center by default; anchor at the top-left corner instead.
+    background.setPositionByOrigin(new Point(0, 0), 'left', 'top');
 
-    const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, {
-      width,
-      height,
-      backgroundColor: '#ffffff',
-    });
-    void this.fullFabricCanvas?.dispose();
-    this.advancedEnabled.set(true);
-
-    background.set({
-      left: 0,
-      top: 0,
-      selectable: false,
-      evented: false,
-    });
-    fullCanvas.add(background);
-
-    const canvasEl = this.canvas.nativeElement.firstChild;
-    if (canvasEl instanceof HTMLCanvasElement) {
-      const dataUrl = canvasEl.toDataURL();
-      const qrImage = await FabricImage.fromURL(dataUrl);
-      qrImage.set({
-        left: (width - qrImage.width) / 2,
-        top: (height - qrImage.height) / 2,
-      });
-      fullCanvas.add(qrImage);
-      fullCanvas.renderAll();
+    // Rendered once at the largest allowed size and shown scaled down, so resizing never upscales (blurs) the code.
+    const maxSize = Math.min(width, height);
+    const png = await this.createQrCode({
+      ...this.qrConfig,
+      width: maxSize,
+      height: maxSize,
+      margin: Math.round(maxSize * 0.06),
+      // A white quiet zone keeps the code scannable on dark or busy photos.
+      backgroundOptions: { color: '#ffffff' },
+    }).getRawData('png');
+    if (!(png instanceof Blob)) {
+      return;
     }
+    const qrImage = await this.loadImage(png);
+
+    // Export keeps the full resolution; the preview is only scaled down via CSS to fit the screen.
+    const previewScale = Math.min(window.innerWidth / width, window.innerHeight / height, 1);
+    // Handles and border are drawn in image pixels, so convert them to a finger-friendly on-screen size.
+    const handleSize = 28 / previewScale;
+    qrImage.set({
+      lockRotation: true,
+      lockScalingFlip: true,
+      transparentCorners: false,
+      cornerSize: handleSize,
+      touchCornerSize: handleSize * 1.5,
+      borderScaleFactor: 2 / previewScale,
+    });
+    // Only the corners: they scale proportionally, side handles would distort the code.
+    qrImage.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false, mtr: false });
+    const { size, left, top } = placeQrCode(width, height);
+    qrImage.scale(size / maxSize);
+    qrImage.setPositionByOrigin(new Point(left, top), 'left', 'top');
+
+    await this.fullFabricCanvas?.dispose();
+    const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, { width, height, selection: false });
+    fullCanvas.setDimensions({ width: `${width * previewScale}px`, height: `${height * previewScale}px` }, { cssOnly: true });
+    const clampToImage = (): void => {
+      const topLeft = qrImage.getPointByOrigin('left', 'top');
+      const box = clampQrBox({ size: qrImage.getScaledWidth(), left: topLeft.x, top: topLeft.y }, width, height);
+      qrImage.scale(box.size / maxSize);
+      qrImage.setPositionByOrigin(new Point(box.left, box.top), 'left', 'top');
+      qrImage.setCoords();
+    };
+    fullCanvas.on('object:moving', clampToImage);
+    fullCanvas.on('object:scaling', clampToImage);
+    fullCanvas.add(background, qrImage);
+    // Selected from the start so the handles show that the code can be moved and resized.
+    fullCanvas.setActiveObject(qrImage);
+    fullCanvas.renderAll();
     this.fullFabricCanvas = fullCanvas;
+    this.advancedEnabled.set(true);
   }
 
-  private readFileAsDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (): void => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result);
-          return;
-        }
-        reject(new Error('Datei konnte nicht gelesen werden.'));
-      };
-      reader.onerror = (): void => reject(new Error('Datei konnte nicht gelesen werden.'));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  protected downloadAdvanced(): void {
-    if (this.fullFabricCanvas) {
-      const dataUrl = this.fullFabricCanvas.toDataURL({ format: 'png', multiplier: 1 });
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = 'vcard-wallpaper.png';
-      link.click();
+  private async loadImage(blob: Blob): Promise<FabricImage> {
+    const url = URL.createObjectURL(blob);
+    try {
+      return await FabricImage.fromURL(url);
+    } finally {
+      URL.revokeObjectURL(url);
     }
+  }
+
+  protected downloadAdvanced(): Promise<void> {
+    return this.report('Das Hintergrundbild konnte nicht gespeichert werden.', async () => {
+      if (!this.fullFabricCanvas) {
+        return;
+      }
+      const png = await this.fullFabricCanvas.toBlob({ format: 'png', multiplier: 1 });
+      if (!png) {
+        throw new Error('Wallpaper export returned no image');
+      }
+      await saveFile(png, 'vcard-wallpaper.png');
+    });
   }
 
   protected closeAdvanced(): void {

@@ -4,11 +4,11 @@ Eine Angular-Webanwendung zur Erstellung von vCards als Bilder, die als Smartpho
 
 ## Technologien
 
-- [Angular](https://angular.io/) 21.x
-- [Tailwind CSS](https://tailwindcss.com/) 3.x
-- [Capacitor](https://capacitorjs.com/) 7.x (Android & iOS)
-- [Fabric.js](http://fabricjs.com/) 7.x – Canvas-Rendering für das Bild
-- [ngx-qrcode-styling](https://www.npmjs.com/package/ngx-qrcode-styling) – QR-Code-Generierung
+- [Angular](https://angular.dev/) 22.x
+- [Tailwind CSS](https://tailwindcss.com/) 4.x
+- [Capacitor](https://capacitorjs.com/) 8.x (Android & iOS)
+- [Fabric.js](https://fabricjs.com/) 7.x – Canvas-Rendering für das Bild
+- [qr-code-styling](https://www.npmjs.com/package/qr-code-styling) – QR-Code-Generierung
 
 ## Funktionsweise
 
@@ -17,18 +17,20 @@ Eine Angular-Webanwendung zur Erstellung von vCards als Bilder, die als Smartpho
 3. Das Bild kann als Smartphone-Sperrbildschirm-Foto gesetzt werden
 4. Andere Personen können den QR-Code direkt vom Sperrbildschirm scannen und den Kontakt speichern
 
-## Development server
+## Entwicklung
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+Voraussetzung: Node.js ^22.22 oder ^24.15.
 
-## Build
+- `npm start` – Dev-Server auf http://localhost:4200/
+- `npm run build` – Produktions-Build nach `dist/vcard/browser`
+- `npm test` – Unit-Tests mit [Vitest](https://vitest.dev/)
+- `npm run lint` – ESLint
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+## Mobile Apps
 
-## Running unit tests
-
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+```
+npm run build
+npx cap sync
+npx cap open android   # benötigt Android Studio und JDK 21
+npx cap open ios       # benötigt Xcode (macOS)
+```
