@@ -102,6 +102,10 @@
 
 <div [class.hidden]="!advancedEnabled()" class="relative h-screen w-screen">
   <canvas #fullcanvas class="h-screen w-screen"></canvas>
+  <p class="pointer-events-none absolute left-4 right-4 rounded-sm bg-black/60 p-2 text-center text-sm text-white"
+     style="bottom: calc(env(safe-area-inset-bottom) + 1rem)">
+    QR-Code verschieben oder an den Ecken größer und kleiner ziehen
+  </p>
   <div class="absolute top-0 left-0 right-0 flex justify-between p-4">
     <button (click)="closeAdvanced()"
             class="bg-white text-gray-800 font-bold py-2 px-4 rounded-sm shadow-sm">

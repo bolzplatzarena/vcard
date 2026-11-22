@@ -4,7 +4,7 @@ import { Canvas as FabricCanvas, FabricImage, Point } from 'fabric';
 import QRCodeStyling, { Options } from 'qr-code-styling';
 import { buildVCard, Contact, toQrData } from './vcard';
 import { saveFile } from './save-file';
-import { fitCanvas, placeQrCode } from './wallpaper';
+import { clampQrBox, fitCanvas, placeQrCode } from './wallpaper';
 
 @Component({
     selector: 'app-root',
@@ -158,13 +158,13 @@ export class AppComponent implements OnInit {
     // Fabric 7 positions objects by their center by default; anchor at the top-left corner instead.
     background.setPositionByOrigin(new Point(0, 0), 'left', 'top');
 
-    // Render the QR code at the target resolution instead of upscaling the 200px preview.
-    const { size, left, top } = placeQrCode(width, height);
+    // Rendered once at the largest allowed size and shown scaled down, so resizing never upscales (blurs) the code.
+    const maxSize = Math.min(width, height);
     const png = await this.createQrCode({
       ...this.qrConfig,
-      width: size,
-      height: size,
-      margin: Math.round(size * 0.06),
+      width: maxSize,
+      height: maxSize,
+      margin: Math.round(maxSize * 0.06),
       // A white quiet zone keeps the code scannable on dark or busy photos.
       backgroundOptions: { color: '#ffffff' },
     }).getRawData('png');
@@ -172,15 +172,40 @@ export class AppComponent implements OnInit {
       return;
     }
     const qrImage = await this.loadImage(png);
-    qrImage.set({ selectable: false, evented: false });
+
+    // Export keeps the full resolution; the preview is only scaled down via CSS to fit the screen.
+    const previewScale = Math.min(window.innerWidth / width, window.innerHeight / height, 1);
+    // Handles and border are drawn in image pixels, so convert them to a finger-friendly on-screen size.
+    const handleSize = 28 / previewScale;
+    qrImage.set({
+      lockRotation: true,
+      lockScalingFlip: true,
+      transparentCorners: false,
+      cornerSize: handleSize,
+      touchCornerSize: handleSize * 1.5,
+      borderScaleFactor: 2 / previewScale,
+    });
+    // Only the corners: they scale proportionally, side handles would distort the code.
+    qrImage.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false, mtr: false });
+    const { size, left, top } = placeQrCode(width, height);
+    qrImage.scale(size / maxSize);
     qrImage.setPositionByOrigin(new Point(left, top), 'left', 'top');
 
     await this.fullFabricCanvas?.dispose();
-    const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, { width, height });
-    // Export keeps the full resolution; the preview is only scaled down via CSS to fit the screen.
-    const scale = Math.min(window.innerWidth / width, window.innerHeight / height, 1);
-    fullCanvas.setDimensions({ width: `${width * scale}px`, height: `${height * scale}px` }, { cssOnly: true });
+    const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, { width, height, selection: false });
+    fullCanvas.setDimensions({ width: `${width * previewScale}px`, height: `${height * previewScale}px` }, { cssOnly: true });
+    const clampToImage = (): void => {
+      const topLeft = qrImage.getPointByOrigin('left', 'top');
+      const box = clampQrBox({ size: qrImage.getScaledWidth(), left: topLeft.x, top: topLeft.y }, width, height);
+      qrImage.scale(box.size / maxSize);
+      qrImage.setPositionByOrigin(new Point(box.left, box.top), 'left', 'top');
+      qrImage.setCoords();
+    };
+    fullCanvas.on('object:moving', clampToImage);
+    fullCanvas.on('object:scaling', clampToImage);
     fullCanvas.add(background, qrImage);
+    // Selected from the start so the handles show that the code can be moved and resized.
+    fullCanvas.setActiveObject(qrImage);
     fullCanvas.renderAll();
     this.fullFabricCanvas = fullCanvas;
     this.advancedEnabled.set(true);

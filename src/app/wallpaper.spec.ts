@@ -1,4 +1,20 @@
-import { fitCanvas, MAX_CANVAS_PIXELS, placeQrCode } from './wallpaper';
+import { clampQrBox, fitCanvas, MAX_CANVAS_PIXELS, placeQrCode } from './wallpaper';
+
+describe('clampQrBox', () => {
+  it('leaves a box inside the image unchanged', () => {
+    expect(clampQrBox({ size: 400, left: 100, top: 200 }, 1000, 2000)).toEqual({ size: 400, left: 100, top: 200 });
+  });
+
+  it('pushes a box that was dragged out of the image back inside', () => {
+    expect(clampQrBox({ size: 400, left: -50, top: 1900 }, 1000, 2000)).toEqual({ size: 400, left: 0, top: 1600 });
+    expect(clampQrBox({ size: 400, left: 900, top: -10 }, 1000, 2000)).toEqual({ size: 400, left: 600, top: 0 });
+  });
+
+  it('keeps the size between the scannable minimum and the shorter image side', () => {
+    expect(clampQrBox({ size: 10, left: 0, top: 0 }, 1000, 2000).size).toBe(150);
+    expect(clampQrBox({ size: 5000, left: 0, top: 0 }, 1000, 2000)).toEqual({ size: 1000, left: 0, top: 0 });
+  });
+});
 
 describe('fitCanvas', () => {
   it('keeps images below the canvas limit unchanged', () => {

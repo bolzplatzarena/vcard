@@ -13,6 +13,20 @@ export function fitCanvas(width: number, height: number): { width: number; heigh
   return { width: Math.floor(width * scale), height: Math.floor(height * scale), scale };
 }
 
+// Below this share of the shorter image side a phone camera can no longer read the code from the lock screen.
+export const MIN_QR_SHARE = 0.15;
+
+// Keeps a QR code the user moves or resizes fully on the image and large enough to scan.
+export function clampQrBox(box: QrPlacement, width: number, height: number): QrPlacement {
+  const shortSide = Math.min(width, height);
+  const size = Math.min(Math.max(box.size, shortSide * MIN_QR_SHARE), shortSide);
+  return {
+    size,
+    left: Math.min(Math.max(box.left, 0), width - size),
+    top: Math.min(Math.max(box.top, 0), height - size),
+  };
+}
+
 // Lock screens show the clock at the top and notifications in the middle,
 // so the QR code sits centered horizontally in the lower third.
 export function placeQrCode(width: number, height: number): QrPlacement {
