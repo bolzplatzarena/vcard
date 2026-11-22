@@ -2,6 +2,8 @@ import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
+export const SHARE_CANCELED = 'Share canceled';
+
 export interface NativeApi {
   isNative: () => boolean;
   writeFile: typeof Filesystem.writeFile;
@@ -31,8 +33,9 @@ export async function saveFile(blob: Blob, fileName: string, native = capacitorA
   try {
     await native.share({ title: fileName, files: [uri] });
   } catch (error) {
-    // Closing the share sheet rejects with "Share canceled"; that is not an error for the user.
-    if (!(error instanceof Error && /cancel/i.test(error.message))) {
+    // Closing the share sheet is not an error for the user. The text is hard-coded and not localized
+    // on both platforms (@capacitor/share SharePlugin.java and SharePlugin.swift).
+    if (!(error instanceof Error && error.message === SHARE_CANCELED)) {
       throw error;
     }
   }

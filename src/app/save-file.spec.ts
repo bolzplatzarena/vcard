@@ -1,5 +1,5 @@
 import { Directory } from '@capacitor/filesystem';
-import { NativeApi, saveFile } from './save-file';
+import { NativeApi, saveFile, SHARE_CANCELED } from './save-file';
 
 const png = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' });
 
@@ -38,8 +38,11 @@ describe('saveFile', () => {
     const native = createFakeNative(true);
     const share = vi.mocked(native.share);
 
-    share.mockRejectedValueOnce(new Error('Share canceled'));
+    share.mockRejectedValueOnce(new Error(SHARE_CANCELED));
     await expect(saveFile(png, 'qr.png', native)).resolves.toBeUndefined();
+
+    share.mockRejectedValueOnce(new Error('Upload cancelled by the server'));
+    await expect(saveFile(png, 'qr.png', native)).rejects.toThrow('Upload cancelled by the server');
 
     share.mockRejectedValueOnce(new Error('No app available'));
     await expect(saveFile(png, 'qr.png', native)).rejects.toThrow('No app available');

@@ -87,6 +87,10 @@ export class AppComponent implements OnInit {
   }
 
   protected download(): Promise<void> {
+    // The button is disabled then anyway; returning early avoids a misleading "could not save" message.
+    if (this.form.invalid) {
+      return Promise.resolve();
+    }
     return this.report('Der QR-Code konnte nicht gespeichert werden.', async () => {
       // getRawData waits for the asynchronous drawing; reading the canvas right away can export a blank image.
       const png = await this.showQrCode()?.getRawData('png');

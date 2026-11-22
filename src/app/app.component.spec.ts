@@ -52,6 +52,16 @@ describe('AppComponent error handling', () => {
     expect(fixture.nativeElement.querySelector('#givenname').value).toBe('Max');
   });
 
+  it('shows no error when download is triggered with missing required fields', async () => {
+    const fixture = await createComponent();
+
+    await (fixture.componentInstance as unknown as { download(): Promise<void> }).download();
+    fixture.detectChanges();
+
+    expect(getAlert(fixture)).toBeNull();
+    expect(handleError).not.toHaveBeenCalled();
+  });
+
   it('asks for an image when another file type is picked', async () => {
     localStorage.setItem('data', validContact);
     const fixture = await createComponent();
