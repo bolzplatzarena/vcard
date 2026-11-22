@@ -1,9 +1,8 @@
 import { ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Canvas as FabricCanvas, FabricImage } from 'fabric';
-import { NgxQrcodeStylingService, Options } from 'ngx-qrcode-styling';
-import { firstValueFrom } from 'rxjs';
-import { buildVCard } from './vcard';
+import QRCodeStyling, { Options } from 'qr-code-styling';
+import { buildVCard, toQrData } from './vcard';
 
 @Component({
     selector: 'app-root',
@@ -20,7 +19,6 @@ export class AppComponent implements OnInit {
   private fullFabricCanvas?: FabricCanvas;
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
-  private readonly qrcode = inject(NgxQrcodeStylingService);
 
   protected readonly form = this.formBuilder.group({
     givenName: ['', [Validators.required]],
@@ -30,7 +28,7 @@ export class AppComponent implements OnInit {
     mobile: ['', [Validators.required]],
     address: [''],
   });
-  protected readonly qrConfig: Options = {
+  protected readonly qrConfig: Partial<Options> = {
     width: 200,
     height: 200,
     margin: 0,
@@ -59,28 +57,35 @@ export class AppComponent implements OnInit {
     });
   }
 
-  protected generate(): Promise<void> {
+  protected generate(): QRCodeStyling | undefined {
     if (this.form.invalid) {
-      return Promise.reject(new Error('Formular ist ungültig.'));
+      return undefined;
     }
-
-    return firstValueFrom(this.qrcode.create({
-        ...this.qrConfig,
-        data: buildVCard(this.form.getRawValue()),
-      },
-      this.canvas.nativeElement,
-    ));
+    const qrCode = this.createQrCode(this.qrConfig);
+    this.canvas.nativeElement.replaceChildren();
+    qrCode.append(this.canvas.nativeElement);
+    return qrCode;
   }
 
   protected async download(): Promise<void> {
-    await this.generate();
-    const canvasEl = this.canvas.nativeElement.firstChild;
-    if (canvasEl instanceof HTMLCanvasElement) {
-      const dataUrl = canvasEl.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = 'vcard-qr.png';
-      link.click();
+    // getRawData waits for the asynchronous drawing; reading the canvas right away can export a blank image.
+    const png = await this.generate()?.getRawData('png');
+    if (png instanceof Blob) {
+      this.saveFile(URL.createObjectURL(png), 'vcard-qr.png');
+    }
+  }
+
+  private createQrCode(config: Partial<Options>): QRCodeStyling {
+    return new QRCodeStyling({ ...config, data: toQrData(buildVCard(this.form.getRawValue())) });
+  }
+
+  private saveFile(url: string, fileName: string): void {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    if (url.startsWith('blob:')) {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
   }
 
@@ -110,7 +115,7 @@ export class AppComponent implements OnInit {
     if (this.form.invalid) {
       return;
     }
-    await this.generate();
+    const png = await this.generate()?.getRawData('png');
 
     const backgroundDataUrl = await this.readFileAsDataUrl(backgroundFile);
     const background = await FabricImage.fromURL(backgroundDataUrl);
@@ -133,10 +138,10 @@ export class AppComponent implements OnInit {
     });
     fullCanvas.add(background);
 
-    const canvasEl = this.canvas.nativeElement.firstChild;
-    if (canvasEl instanceof HTMLCanvasElement) {
-      const dataUrl = canvasEl.toDataURL();
-      const qrImage = await FabricImage.fromURL(dataUrl);
+    if (png instanceof Blob) {
+      const qrUrl = URL.createObjectURL(png);
+      const qrImage = await FabricImage.fromURL(qrUrl);
+      URL.revokeObjectURL(qrUrl);
       qrImage.set({
         left: (width - qrImage.width) / 2,
         top: (height - qrImage.height) / 2,
@@ -164,11 +169,7 @@ export class AppComponent implements OnInit {
 
   protected downloadAdvanced(): void {
     if (this.fullFabricCanvas) {
-      const dataUrl = this.fullFabricCanvas.toDataURL({ format: 'png', multiplier: 1 });
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = 'vcard-wallpaper.png';
-      link.click();
+      this.saveFile(this.fullFabricCanvas.toDataURL({ format: 'png', multiplier: 1 }), 'vcard-wallpaper.png');
     }
   }
 

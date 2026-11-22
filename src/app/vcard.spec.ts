@@ -1,4 +1,15 @@
-import { buildVCard, Contact } from './vcard';
+import { buildVCard, Contact, toQrData } from './vcard';
+
+describe('toQrData', () => {
+  it('keeps ASCII unchanged', () => {
+    expect(toQrData('BEGIN:VCARD')).toBe('BEGIN:VCARD');
+  });
+
+  it('encodes umlauts as UTF-8 bytes', () => {
+    expect(toQrData('ü')).toBe('\xc3\xbc');
+    expect(toQrData('€')).toBe('\xe2\x82\xac');
+  });
+});
 
 const contact: Contact = {
   givenName: 'Max',

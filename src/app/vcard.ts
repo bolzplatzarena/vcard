@@ -17,6 +17,12 @@ function escapeValue(value: string): string {
     .replace(/\r?\n/g, '\\n');
 }
 
+// qr-code-styling turns each character into one byte (charCode & 0xff), so non-ASCII
+// text must be handed over as its UTF-8 bytes in a binary string.
+export function toQrData(text: string): string {
+  return Array.from(new TextEncoder().encode(text), byte => String.fromCharCode(byte)).join('');
+}
+
 export function buildVCard(contact: Contact): string {
   const c: Contact = {
     givenName: escapeValue(contact.givenName),
