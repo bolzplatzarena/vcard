@@ -3,6 +3,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { Canvas as FabricCanvas, FabricImage } from 'fabric';
 import { NgxQrcodeStylingService, Options } from 'ngx-qrcode-styling';
 import { firstValueFrom } from 'rxjs';
+import { buildVCard } from './vcard';
 
 @Component({
     selector: 'app-root',
@@ -60,36 +61,12 @@ export class AppComponent implements OnInit {
 
   protected generate(): Promise<void> {
     if (this.form.invalid) {
-      return Promise.reject();
+      return Promise.reject(new Error('Formular ist ungültig.'));
     }
-
-    const person = this.form.getRawValue();
-
-    const lines = [
-      'BEGIN:VCARD',
-      'VERSION:3.0',
-      `N:${person.familyName};${person.givenName}`,
-      `FN:${person.givenName} ${person.familyName}`,
-    ];
-    if (person.email) {
-      lines.push(`EMAIL:${person.email}`);
-    }
-    if (person.phone) {
-      lines.push(`TEL;TYPE=WORK,VOICE:${person.phone}`);
-    }
-    if (person.mobile) {
-      lines.push(`TEL;TYPE=CELL:${person.mobile}`);
-    }
-    if (person.address) {
-      // ADR format: post-office-box;extended-address;street-address;locality;region;postal-code;country-name
-      lines.push(`ADR;TYPE=HOME:;;${person.address};;;;`);
-    }
-    lines.push('END:VCARD');
-    const vcard = lines.join('\r\n');
 
     return firstValueFrom(this.qrcode.create({
         ...this.qrConfig,
-        data: vcard,
+        data: buildVCard(this.form.getRawValue()),
       },
       this.canvas.nativeElement,
     ));
