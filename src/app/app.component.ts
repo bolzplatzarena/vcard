@@ -1,10 +1,10 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ErrorHandler, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Canvas as FabricCanvas, FabricImage, Point } from 'fabric';
 import QRCodeStyling, { Options } from 'qr-code-styling';
-import { buildVCard, toQrData } from './vcard';
+import { buildVCard, Contact, toQrData } from './vcard';
 import { saveFile } from './save-file';
-import { placeQrCode } from './wallpaper';
+import { fitCanvas, placeQrCode } from './wallpaper';
 
 @Component({
     selector: 'app-root',
@@ -21,6 +21,9 @@ export class AppComponent implements OnInit {
   private fullFabricCanvas?: FabricCanvas;
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
+  private readonly errorHandler = inject(ErrorHandler);
+
+  protected readonly error = signal<string | undefined>(undefined);
 
   protected readonly form = this.formBuilder.group({
     givenName: ['', [Validators.required]],
@@ -60,16 +63,52 @@ export class AppComponent implements OnInit {
   protected readonly advancedEnabled = signal(false);
 
   ngOnInit(): void {
-    const data = localStorage.getItem('data');
-    if (data) {
-      this.form.patchValue(JSON.parse(data));
+    try {
+      const data: unknown = JSON.parse(localStorage.getItem('data') ?? 'null');
+      if (data && typeof data === 'object') {
+        this.form.patchValue(data as Partial<Contact>);
+      }
+    } catch {
+      // Corrupt entry or blocked storage: start with an empty form; the next change overwrites the entry.
     }
     this.form.valueChanges.subscribe(value => {
-      localStorage.setItem('data', JSON.stringify(value));
+      try {
+        localStorage.setItem('data', JSON.stringify(value));
+      } catch {
+        // Storage full or blocked: the form keeps working, it just isn't remembered.
+      }
     });
   }
 
-  protected generate(): QRCodeStyling | undefined {
+  protected generate(): Promise<void> {
+    return this.report('Der QR-Code konnte nicht erstellt werden. Sind die Angaben vielleicht zu lang?', () => {
+      this.showQrCode();
+    });
+  }
+
+  protected download(): Promise<void> {
+    return this.report('Der QR-Code konnte nicht gespeichert werden.', async () => {
+      // getRawData waits for the asynchronous drawing; reading the canvas right away can export a blank image.
+      const png = await this.showQrCode()?.getRawData('png');
+      if (!(png instanceof Blob)) {
+        throw new Error('QR code export returned no image');
+      }
+      await saveFile(png, 'vcard-qr.png');
+    });
+  }
+
+  // Shows a readable message to the user and hands the technical error to Angular's ErrorHandler.
+  private async report(message: string, action: () => void | Promise<void>): Promise<void> {
+    this.error.set(undefined);
+    try {
+      await action();
+    } catch (error) {
+      this.errorHandler.handleError(error);
+      this.error.set(message);
+    }
+  }
+
+  private showQrCode(): QRCodeStyling | undefined {
     if (this.form.invalid) {
       return undefined;
     }
@@ -77,14 +116,6 @@ export class AppComponent implements OnInit {
     this.canvas.nativeElement.replaceChildren();
     qrCode.append(this.canvas.nativeElement);
     return qrCode;
-  }
-
-  protected async download(): Promise<void> {
-    // getRawData waits for the asynchronous drawing; reading the canvas right away can export a blank image.
-    const png = await this.generate()?.getRawData('png');
-    if (png instanceof Blob) {
-      await saveFile(png, 'vcard-qr.png');
-    }
   }
 
   private createQrCode(config: Partial<Options>): QRCodeStyling {
@@ -98,29 +129,32 @@ export class AppComponent implements OnInit {
     this.backgroundInput.nativeElement.click();
   }
 
-  protected async onBackgroundSelected(event: Event): Promise<void> {
+  protected onBackgroundSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
+    // Reset right away so picking the same file again triggers another change event.
+    input.value = '';
     if (!file) {
-      return;
+      return Promise.resolve();
     }
     if (!file.type.startsWith('image/')) {
-      input.value = '';
-      return;
+      this.error.set('Bitte wähle eine Bilddatei aus.');
+      return Promise.resolve();
     }
-
-    await this.generateAdvanced(file);
-    input.value = '';
+    return this.report(
+      'Das Hintergrundbild konnte nicht erstellt werden. Bitte versuche ein anderes Bild (JPG oder PNG).',
+      () => this.generateAdvanced(file),
+    );
   }
 
-  protected async generateAdvanced(backgroundFile: File): Promise<void> {
+  private async generateAdvanced(backgroundFile: File): Promise<void> {
     if (this.form.invalid) {
       return;
     }
 
     const background = await this.loadImage(backgroundFile);
-    const { width, height } = background;
-    background.set({ selectable: false, evented: false });
+    const { width, height, scale: imageScale } = fitCanvas(background.width, background.height);
+    background.set({ scaleX: imageScale, scaleY: imageScale, selectable: false, evented: false });
     // Fabric 7 positions objects by their center by default; anchor at the top-left corner instead.
     background.setPositionByOrigin(new Point(0, 0), 'left', 'top');
 
@@ -161,11 +195,17 @@ export class AppComponent implements OnInit {
     }
   }
 
-  protected async downloadAdvanced(): Promise<void> {
-    const png = await this.fullFabricCanvas?.toBlob({ format: 'png', multiplier: 1 });
-    if (png) {
+  protected downloadAdvanced(): Promise<void> {
+    return this.report('Das Hintergrundbild konnte nicht gespeichert werden.', async () => {
+      if (!this.fullFabricCanvas) {
+        return;
+      }
+      const png = await this.fullFabricCanvas.toBlob({ format: 'png', multiplier: 1 });
+      if (!png) {
+        throw new Error('Wallpaper export returned no image');
+      }
       await saveFile(png, 'vcard-wallpaper.png');
-    }
+    });
   }
 
   protected closeAdvanced(): void {

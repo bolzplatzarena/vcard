@@ -113,3 +113,12 @@
     </button>
   </div>
 </div>
+
+@if (error(); as message) {
+  <div class="fixed left-4 right-4 z-10 flex items-start gap-3 rounded bg-red-600 p-3 text-white shadow-lg"
+       role="alert"
+       style="bottom: calc(env(safe-area-inset-bottom) + 1rem)">
+    <p class="flex-1">{{ message }}</p>
+    <button (click)="error.set(undefined)" aria-label="Meldung schließen" class="font-bold px-2" type="button">✕</button>
+  </div>
+}
