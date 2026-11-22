@@ -32,6 +32,17 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+@layer components {
+  .field {
+    @apply w-full rounded-lg border border-gray-200 px-3 py-2.5 text-gray-800 transition-colors focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30 focus:outline-hidden;
+  }
+
+  /* Bottom bar button: icon above a short label, so both actions fit without taking much height. */
+  .action {
+    @apply flex flex-1 flex-col items-center gap-1 py-2 text-xs font-semibold transition-colors active:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+}
+
 /* Tailwind v3 defaults that v4 changed, kept so the app looks and behaves as before. */
 @layer base {
   *,

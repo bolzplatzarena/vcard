@@ -52,6 +52,22 @@ describe('AppComponent error handling', () => {
     expect(fixture.nativeElement.querySelector('#givenname').value).toBe('Max');
   });
 
+  it('shows a live QR preview while the required fields are valid', async () => {
+    localStorage.setItem('data', validContact);
+    const fixture = await createComponent();
+    const preview = (): HTMLElement => fixture.nativeElement.querySelector('section[aria-label=Vorschau]');
+    expect(preview().classList).not.toContain('hidden');
+    expect(preview().querySelector('canvas')).not.toBeNull();
+
+    const givenName: HTMLInputElement = fixture.nativeElement.querySelector('#givenname');
+    givenName.value = '';
+    givenName.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(preview().classList).toContain('hidden');
+    expect(preview().querySelector('canvas')).toBeNull();
+  });
+
   it('shows no error when download is triggered with missing required fields', async () => {
     const fixture = await createComponent();
 
