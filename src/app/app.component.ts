@@ -3,6 +3,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { Canvas as FabricCanvas, FabricImage } from 'fabric';
 import QRCodeStyling, { Options } from 'qr-code-styling';
 import { buildVCard, toQrData } from './vcard';
+import { placeQrCode } from './wallpaper';
 
 @Component({
     selector: 'app-root',
@@ -115,56 +116,45 @@ export class AppComponent implements OnInit {
     if (this.form.invalid) {
       return;
     }
-    const png = await this.generate()?.getRawData('png');
 
-    const backgroundDataUrl = await this.readFileAsDataUrl(backgroundFile);
-    const background = await FabricImage.fromURL(backgroundDataUrl);
-    const width = background.width;
-    const height = background.height;
+    const background = await this.loadImage(backgroundFile);
+    const { width, height } = background;
+    background.set({ left: 0, top: 0, selectable: false, evented: false });
 
-    const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, {
-      width,
-      height,
-      backgroundColor: '#ffffff',
-    });
-    void this.fullFabricCanvas?.dispose();
-    this.advancedEnabled.set(true);
-
-    background.set({
-      left: 0,
-      top: 0,
-      selectable: false,
-      evented: false,
-    });
-    fullCanvas.add(background);
-
-    if (png instanceof Blob) {
-      const qrUrl = URL.createObjectURL(png);
-      const qrImage = await FabricImage.fromURL(qrUrl);
-      URL.revokeObjectURL(qrUrl);
-      qrImage.set({
-        left: (width - qrImage.width) / 2,
-        top: (height - qrImage.height) / 2,
-      });
-      fullCanvas.add(qrImage);
-      fullCanvas.renderAll();
+    // Render the QR code at the target resolution instead of upscaling the 200px preview.
+    const { size, left, top } = placeQrCode(width, height);
+    const png = await this.createQrCode({
+      ...this.qrConfig,
+      width: size,
+      height: size,
+      margin: Math.round(size * 0.06),
+      // A white quiet zone keeps the code scannable on dark or busy photos.
+      backgroundOptions: { color: '#ffffff' },
+    }).getRawData('png');
+    if (!(png instanceof Blob)) {
+      return;
     }
+    const qrImage = await this.loadImage(png);
+    qrImage.set({ left, top, selectable: false, evented: false });
+
+    await this.fullFabricCanvas?.dispose();
+    const fullCanvas = new FabricCanvas(this.fullCanvas.nativeElement, { width, height });
+    // Export keeps the full resolution; the preview is only scaled down via CSS to fit the screen.
+    const scale = Math.min(window.innerWidth / width, window.innerHeight / height, 1);
+    fullCanvas.setDimensions({ width: `${width * scale}px`, height: `${height * scale}px` }, { cssOnly: true });
+    fullCanvas.add(background, qrImage);
+    fullCanvas.renderAll();
     this.fullFabricCanvas = fullCanvas;
+    this.advancedEnabled.set(true);
   }
 
-  private readFileAsDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (): void => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result);
-          return;
-        }
-        reject(new Error('Datei konnte nicht gelesen werden.'));
-      };
-      reader.onerror = (): void => reject(new Error('Datei konnte nicht gelesen werden.'));
-      reader.readAsDataURL(file);
-    });
+  private async loadImage(blob: Blob): Promise<FabricImage> {
+    const url = URL.createObjectURL(blob);
+    try {
+      return await FabricImage.fromURL(url);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   }
 
   protected downloadAdvanced(): void {
