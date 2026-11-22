@@ -4,7 +4,7 @@
   </h1>
   <div class="relative px-4 -bottom-4">
     <div
-        class="mb-2 bg-white p-3 shadow-lg rounded cursor-pointer transition-colors border-b-2 border-transparent hover:border-pink-500">
+        class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
       Erstelle deinen persönlichen QR-Code mit deinen Kontaktdaten und speichere ihn als Hintergrundbild auf deinem Smartphone.
     </div>
   </div>
@@ -12,60 +12,60 @@
     <ng-container>
       <form [formGroup]="form" class="flex-1 overflow-scroll">
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded cursor-pointer transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
             <label class="text-gray-700 text-sm font-bold mb-2" for="givenname">Vorname*</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" formControlName="givenName" id="givenname" placeholder="Vorname"
+            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="given-name" formControlName="givenName" id="givenname" placeholder="Max"
                    type="text">
           </div>
         </div>
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded cursor-pointer transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
             <label class="text-gray-700 text-sm font-bold mb-2" for="name">Nachname*</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" formControlName="familyName" id="name" placeholder="Name"
+            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="family-name" formControlName="familyName" id="name" placeholder="Mustermann"
                    type="text">
           </div>
         </div>
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded cursor-pointer transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
-            <label class="text-gray-700 text-sm font-bold mb-2" for="email">Email*</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" formControlName="email" id="email"
-                   placeholder="Email"
+            <label class="text-gray-700 text-sm font-bold mb-2" for="email">E-Mail*</label>
+            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="email" formControlName="email" id="email"
+                   placeholder="max@example.com"
                    type="email">
           </div>
         </div>
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded cursor-pointer transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
             <label class="text-gray-700 text-sm font-bold mb-2" for="phone">Telefon</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" formControlName="phone" id="phone"
-                   placeholder="Phone"
-                   type="text">
+            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="work tel" formControlName="phone" id="phone"
+                   placeholder="030 1234567"
+                   type="tel">
           </div>
         </div>
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded cursor-pointer transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
             <label class="text-gray-700 text-sm font-bold mb-2" for="mobile">Handy-Nr.*</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" formControlName="mobile" id="mobile"
-                   placeholder="Phone"
-                   type="text">
+            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="mobile tel" formControlName="mobile" id="mobile"
+                   placeholder="+49 170 1234567"
+                   type="tel">
           </div>
         </div>
         <div
-            class="mb-2 bg-white p-3 shadow-lg rounded cursor-pointer transition-colors border-b-2 border-transparent hover:border-pink-500">
+            class="mb-2 bg-white p-3 shadow-lg rounded transition-colors border-b-2 border-transparent hover:border-pink-500">
           <div class="flex flex-col">
             <label class="text-gray-700 text-sm font-bold mb-2" for="address">Adresse</label>
-            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" formControlName="address" id="address"
-                   placeholder="Address"
+            <input class="border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" autocomplete="street-address" formControlName="address" id="address"
+                   placeholder="Hauptstr. 1, 12345 Berlin"
                    type="text">
           </div>
         </div>
       </form>
       <div class="relative">
-        <div #canvas class="tw-w-[200px] tw-h-[200px]"></div>
+        <div #canvas class="mx-auto w-[200px] h-[200px]"></div>
       </div>
       <button (click)="generate()"
               [class.bg-gray-200]="form.invalid"
