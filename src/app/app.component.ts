@@ -3,6 +3,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { Canvas as FabricCanvas, FabricImage } from 'fabric';
 import QRCodeStyling, { Options } from 'qr-code-styling';
 import { buildVCard, toQrData } from './vcard';
+import { saveFile } from './save-file';
 import { placeQrCode } from './wallpaper';
 
 @Component({
@@ -72,22 +73,12 @@ export class AppComponent implements OnInit {
     // getRawData waits for the asynchronous drawing; reading the canvas right away can export a blank image.
     const png = await this.generate()?.getRawData('png');
     if (png instanceof Blob) {
-      this.saveFile(URL.createObjectURL(png), 'vcard-qr.png');
+      await saveFile(png, 'vcard-qr.png');
     }
   }
 
   private createQrCode(config: Partial<Options>): QRCodeStyling {
     return new QRCodeStyling({ ...config, data: toQrData(buildVCard(this.form.getRawValue())) });
-  }
-
-  private saveFile(url: string, fileName: string): void {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    if (url.startsWith('blob:')) {
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }
   }
 
   protected openBackgroundPicker(): void {
@@ -157,9 +148,10 @@ export class AppComponent implements OnInit {
     }
   }
 
-  protected downloadAdvanced(): void {
-    if (this.fullFabricCanvas) {
-      this.saveFile(this.fullFabricCanvas.toDataURL({ format: 'png', multiplier: 1 }), 'vcard-wallpaper.png');
+  protected async downloadAdvanced(): Promise<void> {
+    const png = await this.fullFabricCanvas?.toBlob({ format: 'png', multiplier: 1 });
+    if (png) {
+      await saveFile(png, 'vcard-wallpaper.png');
     }
   }
 
