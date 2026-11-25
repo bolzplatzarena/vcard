@@ -1,6 +1,6 @@
 <!-- Icons: Heroicons v2 outline (MIT, Tailwind Labs), inlined. -->
-<div [attr.inert]="advancedEnabled() ? '' : null" class="flex min-h-0 flex-1 flex-col">
-  <main class="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+<div class="flex min-h-0 flex-1 flex-col">
+  <main #main [attr.inert]="advancedEnabled() ? '' : null" class="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
     <header class="mx-auto max-w-md py-4">
       <h1 class="text-xl font-bold tracking-tight text-gray-800">vCard</h1>
       <p class="text-sm text-gray-700">Dein QR-Code mit Kontaktdaten – als Hintergrundbild für den Sperrbildschirm.</p>
@@ -41,7 +41,24 @@
     </section>
   </main>
 
-  <nav aria-label="Aktionen" class="p-safe-bottom border-t border-gray-200 bg-white">
+  <!-- Takes its own space above the bar, so it covers nothing; only over the wallpaper view it floats. -->
+  @if (error(); as message) {
+    <div #banner
+         [class]="advancedEnabled() ? 'fixed inset-x-0 z-20 px-4' : 'px-4 pb-3'"
+         role="alert"
+         style="bottom: calc(env(safe-area-inset-bottom) + 5rem)">
+      <div class="mx-auto flex max-w-md items-start gap-3 rounded-xl bg-red-600 p-3 text-white shadow-lg">
+        <p class="flex-1 text-sm">{{ message }}</p>
+        <button (click)="error.set(undefined)" aria-label="Meldung schließen" class="-m-1 p-1" type="button">
+          <svg aria-hidden="true" class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M6 18 18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  }
+
+  <nav [attr.inert]="advancedEnabled() ? '' : null" aria-label="Aktionen" class="p-safe-bottom border-t border-gray-200 bg-white">
     <div class="mx-auto flex max-w-md">
       <button (click)="openBackgroundPicker()" [disabled]="form.invalid" class="action text-pink-600" type="button">
         <svg aria-hidden="true" class="size-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -83,16 +100,3 @@
     </div>
   </nav>
 </div>
-
-@if (error(); as message) {
-  <div class="fixed left-4 right-4 z-20 mx-auto flex max-w-md items-start gap-3 rounded-xl bg-red-600 p-3 text-white shadow-lg"
-       role="alert"
-       style="bottom: calc(env(safe-area-inset-bottom) + 5rem)">
-    <p class="flex-1 text-sm">{{ message }}</p>
-    <button (click)="error.set(undefined)" aria-label="Meldung schließen" class="-m-1 p-1" type="button">
-      <svg aria-hidden="true" class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path d="M6 18 18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
-  </div>
-}

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, ErrorHandler, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ErrorHandler, OnInit, ViewChild, afterRenderEffect, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Canvas as FabricCanvas, FabricImage, Point } from 'fabric';
 import QRCodeStyling, { Options } from 'qr-code-styling';
@@ -22,6 +22,9 @@ export class AppComponent implements OnInit {
   @ViewChild('fullcanvas', { static: false }) fullCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('previewArea', { static: false }) previewArea!: ElementRef<HTMLElement>;
   @ViewChild('backgroundInput', { static: false }) backgroundInput!: ElementRef<HTMLInputElement>;
+
+  @ViewChild('main', { static: true }) main!: ElementRef<HTMLElement>;
+  @ViewChild('banner', { static: false }) banner?: ElementRef<HTMLElement>;
 
   private fullFabricCanvas?: FabricCanvas;
 
@@ -67,6 +70,15 @@ export class AppComponent implements OnInit {
   };
 
   protected readonly advancedEnabled = signal(false);
+
+  constructor() {
+    // The banner shortens the scroll area from below; scroll along so what was visible there stays visible.
+    afterRenderEffect(() => {
+      if (this.error() && !this.advancedEnabled()) {
+        this.main.nativeElement.scrollTop += this.banner?.nativeElement.offsetHeight ?? 0;
+      }
+    });
+  }
 
   ngOnInit(): void {
     try {
