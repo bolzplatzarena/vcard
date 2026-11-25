@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, ElementRef, ErrorHandler, OnInit, ViewChild, afterRenderEffect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ErrorHandler, OnInit, ViewChild, afterRenderEffect, inject, signal, viewChild } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Canvas as FabricCanvas, FabricImage, Point } from 'fabric';
 import QRCodeStyling, { Options } from 'qr-code-styling';
+import { debounceTime } from 'rxjs';
 import { buildVCard, Contact, toQrData } from './vcard';
 import { saveFile } from './save-file';
 import { clampQrBox, fitCanvas, placeQrCode } from './wallpaper';
@@ -24,7 +25,8 @@ export class AppComponent implements OnInit {
   @ViewChild('backgroundInput', { static: false }) backgroundInput!: ElementRef<HTMLInputElement>;
 
   @ViewChild('main', { static: true }) main!: ElementRef<HTMLElement>;
-  @ViewChild('banner', { static: false }) banner?: ElementRef<HTMLElement>;
+  // A signal query changes only when the banner appears or disappears, not when its message changes.
+  protected readonly banner = viewChild<ElementRef<HTMLElement>>('banner');
 
   private fullFabricCanvas?: FabricCanvas;
 
@@ -74,8 +76,9 @@ export class AppComponent implements OnInit {
   constructor() {
     // The banner shortens the scroll area from below; scroll along so what was visible there stays visible.
     afterRenderEffect(() => {
-      if (this.error() && !this.advancedEnabled()) {
-        this.main.nativeElement.scrollTop += this.banner?.nativeElement.offsetHeight ?? 0;
+      const banner = this.banner();
+      if (banner && !this.advancedEnabled()) {
+        this.main.nativeElement.scrollTop += banner.nativeElement.offsetHeight;
       }
     });
   }
@@ -96,19 +99,19 @@ export class AppComponent implements OnInit {
       } catch {
         // Storage full or blocked: the form keeps working, it just isn't remembered.
       }
-      this.updatePreview();
     });
+    // Drawing takes noticeably long on slow phones, so wait for a pause in typing.
+    this.form.valueChanges.pipe(debounceTime(150)).subscribe(() => this.updatePreview());
   }
 
   // Live preview: the QR code follows the form as soon as all required fields are valid.
   private updatePreview(): void {
-    if (this.form.invalid) {
-      this.canvas.nativeElement.replaceChildren();
-      return;
-    }
-    void this.report('Der QR-Code konnte nicht erstellt werden. Sind die Angaben vielleicht zu lang?', () => {
+    try {
       this.showQrCode();
-    });
+      this.error.set(undefined);
+    } catch (error) {
+      this.showError('Der QR-Code konnte nicht erstellt werden. Sind die Angaben vielleicht zu lang?', error);
+    }
   }
 
   protected download(): Promise<void> {
@@ -132,17 +135,22 @@ export class AppComponent implements OnInit {
     try {
       await action();
     } catch (error) {
-      this.errorHandler.handleError(error);
-      this.error.set(message);
+      this.showError(message, error);
     }
   }
 
+  private showError(message: string, error: unknown): void {
+    this.errorHandler.handleError(error);
+    this.error.set(message);
+  }
+
   private showQrCode(): QRCodeStyling | undefined {
+    // First, so that no outdated code stays visible if the new one cannot be created.
+    this.canvas.nativeElement.replaceChildren();
     if (this.form.invalid) {
       return undefined;
     }
     const qrCode = this.createQrCode(this.qrConfig);
-    this.canvas.nativeElement.replaceChildren();
     qrCode.append(this.canvas.nativeElement);
     return qrCode;
   }
