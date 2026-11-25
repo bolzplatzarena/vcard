@@ -32,7 +32,7 @@
         <input autocomplete="street-address" class="field" formControlName="address" id="address" placeholder="Hauptstr. 1, 12345 Berlin" type="text">
       </label>
     </form>
-    <p class="mx-auto mt-2 max-w-md px-4 text-xs text-gray-700">* Pflichtfeld</p>
+    <p class="mx-auto mt-2 max-w-md px-4 text-xs text-gray-700" id="required-hint">* Pflichtfeld, für den QR-Code nötig</p>
 
     <section [class.hidden]="form.invalid" aria-label="Vorschau" class="not-has-[canvas]:hidden mx-auto mt-4 max-w-md rounded-2xl border border-gray-200 bg-white p-4 text-center">
       <!-- Rendered at 3x and shown at 200px, so it is sharp on phone displays. -->
@@ -60,13 +60,13 @@
 
   <nav [attr.inert]="advancedEnabled() ? '' : null" aria-label="Aktionen" class="p-safe-bottom border-t border-gray-200 bg-white">
     <div class="mx-auto flex max-w-md">
-      <button (click)="openBackgroundPicker()" [disabled]="form.invalid" class="action text-pink-600" type="button">
+      <button (click)="openBackgroundPicker()" [disabled]="form.invalid" aria-describedby="required-hint" class="action text-pink-600" type="button">
         <svg aria-hidden="true" class="size-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
           <path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         Hintergrundbild
       </button>
-      <button (click)="download()" [disabled]="form.invalid" class="action text-gray-700" type="button">
+      <button (click)="download()" [disabled]="form.invalid" aria-describedby="required-hint" class="action text-gray-700" type="button">
         <svg aria-hidden="true" class="size-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
           <path d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
