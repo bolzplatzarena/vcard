@@ -2,9 +2,10 @@
 
 /*
   Tailwind v3 colors for the shades this app uses, so the v4 (oklch) palette does not shift its look.
+  static: always emitted, because component styles use them through var() where Tailwind does not look.
   Shades not listed here fall back to the v4 palette - add them here when you start using them.
 */
-@theme {
+@theme static {
   --color-pink-500: #ec4899;
   --color-pink-600: #db2777;
   --color-gray-50: #f9fafb;
