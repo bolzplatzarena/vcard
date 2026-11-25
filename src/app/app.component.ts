@@ -13,7 +13,7 @@ const ACCENT_COLOR = '#db2777';
     selector: 'app-root',
     templateUrl: './app.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    styles: ['.ng-invalid.ng-touched { border-color: var(--color-red-600) }'],
+    styles: ['label:has(.ng-invalid.ng-touched) { color: var(--color-red-600); box-shadow: inset 3px 0 var(--color-red-600) }'],
     imports: [ReactiveFormsModule]
 })
 export class AppComponent implements OnInit {
