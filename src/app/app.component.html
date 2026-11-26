@@ -60,7 +60,7 @@
 
   <nav [attr.inert]="advancedEnabled() ? '' : null" aria-label="Aktionen" class="p-safe-bottom border-t border-gray-200 bg-white">
     <div class="mx-auto flex max-w-md">
-      <button (click)="openBackgroundPicker()" [disabled]="form.invalid" aria-describedby="required-hint" class="action text-pink-600" type="button">
+      <button (click)="openWallpaper()" [disabled]="form.invalid || loading()" aria-describedby="required-hint" class="action text-pink-600" type="button">
         <svg aria-hidden="true" class="size-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
           <path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -82,6 +82,20 @@
   <p class="px-4 py-3 text-center text-sm text-gray-700">QR-Code verschieben oder an den Ecken größer und kleiner ziehen</p>
   <div #previewArea class="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
     <canvas #fullcanvas></canvas>
+  </div>
+  <div aria-label="Hintergrund wählen" class="flex justify-center gap-2 px-4 pt-1 pb-3" role="group">
+    @for (preset of presets; track preset.id) {
+      <button (click)="choosePreset(preset.id)" [attr.aria-label]="preset.name" [attr.aria-pressed]="background() === preset.id"
+              [disabled]="loading()" class="thumb" type="button">
+        <img [src]="'assets/wallpapers/' + preset.id + '-thumb.jpg'" alt="" class="size-full object-cover">
+      </button>
+    }
+    <button (click)="openBackgroundPicker()" [attr.aria-pressed]="background() === 'photo'" [disabled]="loading()"
+            aria-label="Eigenes Foto" class="thumb flex items-center justify-center bg-white text-gray-700" type="button">
+      <svg aria-hidden="true" class="size-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M12 4.5v15m7.5-7.5h-15" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
   </div>
   <nav aria-label="Hintergrundbild" class="p-safe-bottom border-t border-gray-200 bg-white">
     <div class="mx-auto flex max-w-md">

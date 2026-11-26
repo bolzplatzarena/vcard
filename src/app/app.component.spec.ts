@@ -113,6 +113,27 @@ describe('AppComponent error handling', () => {
     expect(append.mock.calls.filter(([container]) => container)).toHaveLength(1);
   });
 
+  it('offers the preset backgrounds and an own photo, the first preset preselected', async () => {
+    const fixture = await createComponent();
+    const choices = [...fixture.nativeElement.querySelectorAll('[aria-label="Hintergrund wählen"] button')] as HTMLButtonElement[];
+    expect(choices.map(b => b.getAttribute('aria-label'))).toEqual(['Nacht', 'Abendrot', 'Salbei', 'Dünen', 'Lagune', 'Eigenes Foto']);
+    expect(choices.map(b => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false', 'false', 'false', 'false']);
+  });
+
+  it('opens the wallpaper view with the preset and shows a message when it cannot be loaded', async () => {
+    localStorage.setItem('data', validContact);
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 404 }));
+    const fixture = await createComponent();
+
+    const open = [...fixture.nativeElement.querySelectorAll('nav button')] as HTMLButtonElement[];
+    open.find(b => b.textContent.includes('Hintergrundbild'))?.click();
+    await new Promise(resolve => setTimeout(resolve));
+    fixture.detectChanges();
+
+    expect(fetch).toHaveBeenCalledWith('assets/wallpapers/nacht.jpg');
+    expect(getAlert(fixture)?.textContent).toContain('Das Hintergrundbild konnte nicht geladen werden.');
+  });
+
   it('shows no error when download is triggered with missing required fields', async () => {
     const fixture = await createComponent();
 

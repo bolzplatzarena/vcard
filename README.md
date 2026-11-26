@@ -13,7 +13,7 @@ Eine Angular-Webanwendung zur Erstellung von vCards als Bilder, die als Smartpho
 ## Funktionsweise
 
 1. Visitenkarten-Daten (Name, Telefon, E-Mail, Adresse usw.) eingeben
-2. Ein Bild wird generiert, das einen QR-Code mit allen vCard-Informationen enthält
+2. Hintergrund wählen – eines der mitgelieferten Bilder (`src/assets/wallpapers`) oder ein eigenes Foto – und den QR-Code darauf platzieren; beim Wechsel des Hintergrunds bleibt die Position erhalten
 3. Das Bild kann als Smartphone-Sperrbildschirm-Foto gesetzt werden
 4. Andere Personen können den QR-Code direkt vom Sperrbildschirm scannen und den Kontakt speichern
 
