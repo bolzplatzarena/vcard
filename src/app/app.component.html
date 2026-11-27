@@ -83,7 +83,7 @@
   <div #previewArea class="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
     <canvas #fullcanvas></canvas>
   </div>
-  <div aria-label="Hintergrund wählen" class="flex justify-center gap-2 px-4 pt-1 pb-3" role="group">
+  <div aria-label="Hintergrund wählen" class="flex justify-center-safe gap-2 overflow-x-auto px-4 pt-1 pb-3" role="group">
     @for (preset of presets; track preset.id) {
       <button (click)="choosePreset(preset.id)" [attr.aria-label]="preset.name" [attr.aria-pressed]="background() === preset.id"
               [disabled]="loading()" class="thumb" type="button">

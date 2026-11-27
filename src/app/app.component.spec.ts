@@ -116,8 +116,10 @@ describe('AppComponent error handling', () => {
   it('offers the preset backgrounds and an own photo, the first preset preselected', async () => {
     const fixture = await createComponent();
     const choices = [...fixture.nativeElement.querySelectorAll('[aria-label="Hintergrund wählen"] button')] as HTMLButtonElement[];
-    expect(choices.map(b => b.getAttribute('aria-label'))).toEqual(['Nacht', 'Abendrot', 'Salbei', 'Dünen', 'Lagune', 'Eigenes Foto']);
-    expect(choices.map(b => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false', 'false', 'false', 'false']);
+    expect(choices.map(b => b.getAttribute('aria-label'))).toEqual([
+      'Nacht', 'Abendrot', 'Salbei', 'Dünen', 'Lagune', 'Aurora', 'Bauhaus', 'Orbit', 'Pastell', 'Eigenes Foto',
+    ]);
+    expect(choices.map(b => b.getAttribute('aria-pressed'))).toEqual(['true', ...Array<string>(9).fill('false')]);
   });
 
   it('opens the wallpaper view with the preset and shows a message when it cannot be loaded', async () => {

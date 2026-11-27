@@ -5,6 +5,10 @@ export const WALLPAPER_PRESETS = [
   { id: 'salbei', name: 'Salbei' },
   { id: 'duenen', name: 'Dünen' },
   { id: 'lagune', name: 'Lagune' },
+  { id: 'aurora', name: 'Aurora' },
+  { id: 'bauhaus', name: 'Bauhaus' },
+  { id: 'orbit', name: 'Orbit' },
+  { id: 'pastell', name: 'Pastell' },
 ] as const;
 
 export interface QrPlacement {
