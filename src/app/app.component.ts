@@ -4,6 +4,7 @@ import { Canvas as FabricCanvas, FabricImage, Point } from 'fabric';
 import QRCodeStyling, { Options } from 'qr-code-styling';
 import { debounceTime } from 'rxjs';
 import { buildVCard, Contact, toQrData } from './vcard';
+import { applyPhotoFilter, PHOTO_FILTERS, PhotoFilterId } from './photo-filters';
 import { saveFile } from './save-file';
 import { carryOverQrBox, clampQrBox, fitCanvas, placeQrCode, QrPlacement, WALLPAPER_PRESETS } from './wallpaper';
 
@@ -79,6 +80,10 @@ export class AppComponent implements OnInit {
   protected readonly loading = signal(false);
   // Where the user left the QR code, carried over when the background changes.
   private qrBox?: { box: QrPlacement; width: number; height: number };
+  protected readonly photoFilters = PHOTO_FILTERS;
+  // Stays selected when the background changes, so trying backgrounds keeps the chosen look.
+  protected readonly photoFilter = signal<PhotoFilterId>('original');
+  private backgroundImage?: FabricImage;
 
   constructor() {
     // The banner shortens the scroll area from below; scroll along so what was visible there stays visible.
@@ -224,9 +229,12 @@ export class AppComponent implements OnInit {
       return;
     }
 
-    const background = await this.loadImage(backgroundFile);
-    const { width, height, scale: imageScale } = fitCanvas(background.width, background.height);
-    background.set({ scaleX: imageScale, scaleY: imageScale, selectable: false, evented: false });
+    const loaded = await this.loadImage(backgroundFile);
+    const { width, height, scale: imageScale } = fitCanvas(loaded.width, loaded.height);
+    // Filters work on the image at its own resolution, so large photos are shrunk first (iOS canvas limit).
+    const background = imageScale < 1 ? new FabricImage(this.createScaledCopy(loaded.getElement(), width, height)) : loaded;
+    background.set({ selectable: false, evented: false });
+    applyPhotoFilter(background, this.photoFilter());
     // Fabric 7 positions objects by their center by default; anchor at the top-left corner instead.
     background.setPositionByOrigin(new Point(0, 0), 'left', 'top');
 
@@ -289,7 +297,31 @@ export class AppComponent implements OnInit {
     fullCanvas.setActiveObject(qrImage);
     fullCanvas.renderAll();
     this.fullFabricCanvas = fullCanvas;
+    this.backgroundImage = background;
     this.advancedEnabled.set(true);
+  }
+
+  private createScaledCopy(source: CanvasImageSource, width: number, height: number): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Canvas 2D context unavailable');
+    }
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(source, 0, 0, width, height);
+    return canvas;
+  }
+
+  protected applyFilter(id: PhotoFilterId): Promise<void> {
+    return this.report('Der Filter konnte nicht angewendet werden.', () => {
+      this.photoFilter.set(id);
+      if (this.backgroundImage && this.fullFabricCanvas) {
+        applyPhotoFilter(this.backgroundImage, id);
+        this.fullFabricCanvas.requestRenderAll();
+      }
+    });
   }
 
   private async loadImage(blob: Blob): Promise<FabricImage> {
@@ -318,6 +350,7 @@ export class AppComponent implements OnInit {
     this.advancedEnabled.set(false);
     void this.fullFabricCanvas?.dispose();
     this.fullFabricCanvas = undefined;
+    this.backgroundImage = undefined;
     // The next visit starts with the default placement again.
     this.qrBox = undefined;
   }

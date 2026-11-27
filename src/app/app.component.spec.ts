@@ -122,6 +122,17 @@ describe('AppComponent error handling', () => {
     expect(choices.map(b => b.getAttribute('aria-pressed'))).toEqual(['true', ...Array<string>(9).fill('false')]);
   });
 
+  it('offers the photo filters with Original preselected and keeps the choice', async () => {
+    const fixture = await createComponent();
+    const getChips = (): HTMLButtonElement[] => [...fixture.nativeElement.querySelectorAll('[aria-label=Filter] button')] as HTMLButtonElement[];
+    expect(getChips().map(b => b.textContent.trim())).toEqual(['Original', 'Schwarz-Weiß', 'Sepia', 'Vintage', 'Polaroid', 'Gedimmt', 'Pink']);
+    expect(getChips()[0].getAttribute('aria-pressed')).toBe('true');
+
+    getChips()[1].click();
+    fixture.detectChanges();
+    expect(getChips().map(b => b.getAttribute('aria-pressed'))).toEqual(['false', 'true', 'false', 'false', 'false', 'false', 'false']);
+  });
+
   it('opens the wallpaper view with the preset and shows a message when it cannot be loaded', async () => {
     localStorage.setItem('data', validContact);
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 404 }));
