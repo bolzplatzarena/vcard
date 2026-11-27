@@ -5,6 +5,7 @@ import QRCodeStyling, { Options } from 'qr-code-styling';
 import { debounceTime } from 'rxjs';
 import { buildVCard, Contact, toQrData } from './vcard';
 import { applyPhotoFilter, PHOTO_FILTERS, PhotoFilterId } from './photo-filters';
+import { DEFAULT_QR_STYLE, parseQrStyle, QR_COLORS, QR_SHAPES, QrStyle, toQrOptions } from './qr-style';
 import { saveFile } from './save-file';
 import { carryOverQrBox, clampQrBox, fitCanvas, placeQrCode, QrPlacement, WALLPAPER_PRESETS } from './wallpaper';
 
@@ -44,33 +45,26 @@ export class AppComponent implements OnInit {
     mobile: ['', [Validators.required]],
     address: [''],
   });
-  protected readonly qrConfig: Partial<Options> = {
-    // Shown at 200px; 3x keeps it sharp on phone displays and gives the download a usable resolution.
-    width: 600,
-    height: 600,
-    margin: 0,
-    dotsOptions: {
-      color: '#1977f3',
-      type: 'dots',
-    },
-    // Finder patterns drawn as separate dots break the 1:1:3:1:1 ratio scanners look for,
-    // which fails at high resolutions; solid corners keep the code readable.
-    cornersSquareOptions: {
-      color: '#1977f3',
-      type: 'extra-rounded',
-    },
-    cornersDotOptions: {
-      color: '#1977f3',
-      type: 'dot',
-    },
-    backgroundOptions: {
-      color: 'transparent',
-    },
-    imageOptions: {
-      crossOrigin: 'anonymous',
+  protected readonly qrShapes = QR_SHAPES;
+  protected readonly qrColors = QR_COLORS;
+  protected readonly qrStyle = signal<QrStyle>(DEFAULT_QR_STYLE);
+
+  private get qrConfig(): Partial<Options> {
+    return {
+      // Shown at 200px; 3x keeps it sharp on phone displays and gives the download a usable resolution.
+      width: 600,
+      height: 600,
       margin: 0,
-    },
-  };
+      ...toQrOptions(this.qrStyle()),
+      backgroundOptions: {
+        color: 'transparent',
+      },
+      imageOptions: {
+        crossOrigin: 'anonymous',
+        margin: 0,
+      },
+    };
+  }
 
   protected readonly advancedEnabled = signal(false);
   protected readonly presets = WALLPAPER_PRESETS;
@@ -104,6 +98,11 @@ export class AppComponent implements OnInit {
     } catch {
       // Corrupt entry or blocked storage: start with an empty form; the next change overwrites the entry.
     }
+    try {
+      this.qrStyle.set(parseQrStyle(JSON.parse(localStorage.getItem('qrStyle') ?? 'null')));
+    } catch {
+      // Same as above: keep the default style.
+    }
     this.updatePreview();
     this.form.valueChanges.subscribe(value => {
       try {
@@ -114,6 +113,16 @@ export class AppComponent implements OnInit {
     });
     // Drawing takes noticeably long on slow phones, so wait for a pause in typing.
     this.form.valueChanges.pipe(debounceTime(150)).subscribe(() => this.updatePreview());
+  }
+
+  protected changeQrStyle(change: Partial<QrStyle>): void {
+    this.qrStyle.update(style => ({ ...style, ...change }));
+    try {
+      localStorage.setItem('qrStyle', JSON.stringify(this.qrStyle()));
+    } catch {
+      // Storage full or blocked: the style applies, it just isn't remembered.
+    }
+    this.updatePreview();
   }
 
   // Live preview: the QR code follows the form as soon as all required fields are valid.

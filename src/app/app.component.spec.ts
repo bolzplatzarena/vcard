@@ -147,6 +147,31 @@ describe('AppComponent error handling', () => {
     expect(getAlert(fixture)?.textContent).toContain('Das Hintergrundbild konnte nicht geladen werden.');
   });
 
+  it('redraws the preview in the chosen QR style and remembers it', async () => {
+    localStorage.setItem('data', validContact);
+    const fixture = await createComponent();
+    const append = vi.spyOn(QRCodeStyling.prototype, 'append');
+    const getButton = (group: string, label: string): HTMLButtonElement =>
+      ([...fixture.nativeElement.querySelectorAll(`[aria-label=${group}] button`)] as HTMLButtonElement[])
+        .find(b => (b.getAttribute('aria-label') ?? b.textContent.trim()) === label) as HTMLButtonElement;
+
+    getButton('QR-Stil', 'Eckig').click();
+    getButton('QR-Farbe', 'Schwarz').click();
+    fixture.detectChanges();
+
+    expect(append.mock.calls.filter(([container]) => container)).toHaveLength(2);
+    expect(JSON.parse(localStorage.getItem('qrStyle') ?? 'null')).toEqual({ shape: 'eckig', color: 'schwarz' });
+    expect(getButton('QR-Stil', 'Eckig').getAttribute('aria-pressed')).toBe('true');
+    expect(getButton('QR-Farbe', 'Schwarz').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('restores the stored QR style', async () => {
+    localStorage.setItem('qrStyle', JSON.stringify({ shape: 'elegant', color: 'gruen' }));
+    const fixture = await createComponent();
+    const pressed = [...fixture.nativeElement.querySelectorAll('[aria-pressed=true]')] as HTMLElement[];
+    expect(pressed.map(b => b.getAttribute('aria-label') ?? b.textContent.trim())).toEqual(expect.arrayContaining(['Elegant', 'Grün']));
+  });
+
   it('shows no error when download is triggered with missing required fields', async () => {
     const fixture = await createComponent();
 
