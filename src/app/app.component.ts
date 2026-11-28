@@ -54,10 +54,11 @@ export class AppComponent implements OnInit {
       // Shown at 200px; 3x keeps it sharp on phone displays and gives the download a usable resolution.
       width: 600,
       height: 600,
-      margin: 0,
+      // White with a quiet zone (same 6% as the wallpaper): the saved code stays scannable in dark galleries.
+      margin: 36,
       ...toQrOptions(this.qrStyle()),
       backgroundOptions: {
-        color: 'transparent',
+        color: '#ffffff',
       },
       imageOptions: {
         crossOrigin: 'anonymous',
