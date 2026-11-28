@@ -2,19 +2,18 @@
 
 /*
   Tailwind v3 colors for the shades this app uses, so the v4 (oklch) palette does not shift its look.
+  static: always emitted, because component styles use them through var() where Tailwind does not look.
   Shades not listed here fall back to the v4 palette - add them here when you start using them.
 */
-@theme {
-  --color-yellow-500: #eab308;
+@theme static {
   --color-pink-500: #ec4899;
   --color-pink-600: #db2777;
   --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
   --color-gray-200: #e5e7eb;
   --color-gray-400: #9ca3af;
   --color-gray-700: #374151;
   --color-gray-800: #1f2937;
-  --color-blue-500: #3b82f6;
-  --color-blue-700: #1d4ed8;
   --color-red-600: #dc2626;
 }
 
@@ -30,6 +29,21 @@
 }
 @utility p-safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+@layer components {
+  /* One form line: label left, input right. The whole line is the touch target and shows the focus. */
+  .row {
+    @apply flex items-center px-4 text-gray-700 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-pink-500;
+  }
+  .field {
+    @apply min-w-0 flex-1 py-2.5 text-gray-800 outline-hidden;
+  }
+
+  /* Bottom bar button: icon above a short label, so both actions fit without taking much height. */
+  .action {
+    @apply flex flex-1 flex-col items-center gap-1 py-2 text-xs font-semibold transition-colors active:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40;
+  }
 }
 
 /* Tailwind v3 defaults that v4 changed, kept so the app looks and behaves as before. */

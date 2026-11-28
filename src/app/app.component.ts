@@ -1,22 +1,32 @@
-import { ChangeDetectionStrategy, Component, ElementRef, ErrorHandler, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ErrorHandler, OnInit, ViewChild, afterRenderEffect, inject, signal, viewChild } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Canvas as FabricCanvas, FabricImage, Point } from 'fabric';
 import QRCodeStyling, { Options } from 'qr-code-styling';
+import { debounceTime } from 'rxjs';
 import { buildVCard, Contact, toQrData } from './vcard';
 import { saveFile } from './save-file';
 import { clampQrBox, fitCanvas, placeQrCode } from './wallpaper';
+
+// pink-600, the accent color of the UI (see styles.css).
+const ACCENT_COLOR = '#db2777';
 
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    styles: ['.ng-invalid.ng-touched { border-color: red }'],
+    styles: ['label:has(.ng-invalid.ng-touched) { color: var(--color-red-600); box-shadow: inset 3px 0 var(--color-red-600) }'],
     imports: [ReactiveFormsModule]
 })
 export class AppComponent implements OnInit {
-  @ViewChild('canvas', { static: false }) canvas!: ElementRef<HTMLElement>;
+  // static: the preview is rendered from ngOnInit for restored data, before the first change detection.
+  @ViewChild('canvas', { static: true }) canvas!: ElementRef<HTMLElement>;
   @ViewChild('fullcanvas', { static: false }) fullCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('previewArea', { static: false }) previewArea!: ElementRef<HTMLElement>;
   @ViewChild('backgroundInput', { static: false }) backgroundInput!: ElementRef<HTMLInputElement>;
+
+  @ViewChild('main', { static: true }) main!: ElementRef<HTMLElement>;
+  // A signal query changes only when the banner appears or disappears, not when its message changes.
+  protected readonly banner = viewChild<ElementRef<HTMLElement>>('banner');
 
   private fullFabricCanvas?: FabricCanvas;
 
@@ -34,8 +44,9 @@ export class AppComponent implements OnInit {
     address: [''],
   });
   protected readonly qrConfig: Partial<Options> = {
-    width: 200,
-    height: 200,
+    // Shown at 200px; 3x keeps it sharp on phone displays and gives the download a usable resolution.
+    width: 600,
+    height: 600,
     margin: 0,
     dotsOptions: {
       color: '#1977f3',
@@ -62,6 +73,16 @@ export class AppComponent implements OnInit {
 
   protected readonly advancedEnabled = signal(false);
 
+  constructor() {
+    // The banner shortens the scroll area from below; scroll along so what was visible there stays visible.
+    afterRenderEffect(() => {
+      const banner = this.banner();
+      if (banner && !this.advancedEnabled()) {
+        this.main.nativeElement.scrollTop += banner.nativeElement.offsetHeight;
+      }
+    });
+  }
+
   ngOnInit(): void {
     try {
       const data: unknown = JSON.parse(localStorage.getItem('data') ?? 'null');
@@ -71,6 +92,7 @@ export class AppComponent implements OnInit {
     } catch {
       // Corrupt entry or blocked storage: start with an empty form; the next change overwrites the entry.
     }
+    this.updatePreview();
     this.form.valueChanges.subscribe(value => {
       try {
         localStorage.setItem('data', JSON.stringify(value));
@@ -78,12 +100,18 @@ export class AppComponent implements OnInit {
         // Storage full or blocked: the form keeps working, it just isn't remembered.
       }
     });
+    // Drawing takes noticeably long on slow phones, so wait for a pause in typing.
+    this.form.valueChanges.pipe(debounceTime(150)).subscribe(() => this.updatePreview());
   }
 
-  protected generate(): Promise<void> {
-    return this.report('Der QR-Code konnte nicht erstellt werden. Sind die Angaben vielleicht zu lang?', () => {
+  // Live preview: the QR code follows the form as soon as all required fields are valid.
+  private updatePreview(): void {
+    try {
       this.showQrCode();
-    });
+      this.error.set(undefined);
+    } catch (error) {
+      this.showError('Der QR-Code konnte nicht erstellt werden. Sind die Angaben vielleicht zu lang?', error);
+    }
   }
 
   protected download(): Promise<void> {
@@ -107,17 +135,22 @@ export class AppComponent implements OnInit {
     try {
       await action();
     } catch (error) {
-      this.errorHandler.handleError(error);
-      this.error.set(message);
+      this.showError(message, error);
     }
   }
 
+  private showError(message: string, error: unknown): void {
+    this.errorHandler.handleError(error);
+    this.error.set(message);
+  }
+
   private showQrCode(): QRCodeStyling | undefined {
+    // First, so that no outdated code stays visible if the new one cannot be created.
+    this.canvas.nativeElement.replaceChildren();
     if (this.form.invalid) {
       return undefined;
     }
     const qrCode = this.createQrCode(this.qrConfig);
-    this.canvas.nativeElement.replaceChildren();
     qrCode.append(this.canvas.nativeElement);
     return qrCode;
   }
@@ -178,15 +211,22 @@ export class AppComponent implements OnInit {
     const qrImage = await this.loadImage(png);
 
     // Export keeps the full resolution; the preview is only scaled down via CSS to fit the screen.
-    const previewScale = Math.min(window.innerWidth / width, window.innerHeight / height, 1);
+    // Fit the area between hint and bottom bar, so the bar never covers part of the image.
+    const area = this.previewArea.nativeElement;
+    const previewScale = Math.min(area.clientWidth / width, area.clientHeight / height, 1);
     // Handles and border are drawn in image pixels, so convert them to a finger-friendly on-screen size.
-    const handleSize = 28 / previewScale;
+    // Small visible handles, but a finger-sized touch target.
+    const handleSize = 18 / previewScale;
     qrImage.set({
       lockRotation: true,
       lockScalingFlip: true,
       transparentCorners: false,
+      cornerStyle: 'circle',
+      cornerColor: '#ffffff',
+      cornerStrokeColor: ACCENT_COLOR,
+      borderColor: ACCENT_COLOR,
       cornerSize: handleSize,
-      touchCornerSize: handleSize * 1.5,
+      touchCornerSize: 44 / previewScale,
       borderScaleFactor: 2 / previewScale,
     });
     // Only the corners: they scale proportionally, side handles would distort the code.

@@ -1,6 +1,7 @@
 import { ErrorHandler } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FabricImage } from 'fabric';
+import QRCodeStyling from 'qr-code-styling';
 import { AppComponent } from './app.component';
 
 const validContact = JSON.stringify({
@@ -22,6 +23,15 @@ describe('AppComponent error handling', () => {
     Object.defineProperty(input, 'files', { value: [file], configurable: true });
     input.dispatchEvent(new Event('change'));
     await new Promise(resolve => setTimeout(resolve));
+    fixture.detectChanges();
+  }
+
+  async function enterText(fixture: ComponentFixture<AppComponent>, id: string, text: string): Promise<void> {
+    const input: HTMLInputElement = fixture.nativeElement.querySelector(`#${id}`);
+    input.value = text;
+    input.dispatchEvent(new Event('input'));
+    // Longer than the preview's debounce.
+    await new Promise(resolve => setTimeout(resolve, 200));
     fixture.detectChanges();
   }
 
@@ -50,6 +60,57 @@ describe('AppComponent error handling', () => {
     localStorage.setItem('data', validContact);
     const fixture = await createComponent();
     expect(fixture.nativeElement.querySelector('#givenname').value).toBe('Max');
+  });
+
+  it('shows a live QR preview while the required fields are valid', async () => {
+    localStorage.setItem('data', validContact);
+    const fixture = await createComponent();
+    const preview = (): HTMLElement => fixture.nativeElement.querySelector('section[aria-label=Vorschau]');
+    expect(preview().classList).not.toContain('hidden');
+    expect(preview().querySelector('canvas')).not.toBeNull();
+
+    await enterText(fixture, 'givenname', '');
+
+    expect(preview().classList).toContain('hidden');
+    expect(preview().querySelector('canvas')).toBeNull();
+  });
+
+  it('removes the outdated QR code and shows a message when the data is too long', async () => {
+    localStorage.setItem('data', validContact);
+    const fixture = await createComponent();
+
+    await enterText(fixture, 'address', 'x'.repeat(3000));
+
+    expect(fixture.nativeElement.querySelector('section canvas')).toBeNull();
+    expect(getAlert(fixture)?.textContent).toContain('Der QR-Code konnte nicht erstellt werden.');
+
+    await enterText(fixture, 'address', 'Hauptstr. 1');
+    expect(fixture.nativeElement.querySelector('section canvas')).not.toBeNull();
+    expect(getAlert(fixture)).toBeNull();
+  });
+
+  it('removes the message about too long data when the form becomes invalid', async () => {
+    localStorage.setItem('data', validContact);
+    const fixture = await createComponent();
+
+    await enterText(fixture, 'address', 'x'.repeat(3000));
+    expect(getAlert(fixture)).not.toBeNull();
+
+    await enterText(fixture, 'givenname', '');
+    expect(getAlert(fixture)).toBeNull();
+  });
+
+  it('redraws the preview only once while typing', async () => {
+    localStorage.setItem('data', validContact);
+    const fixture = await createComponent();
+    const append = vi.spyOn(QRCodeStyling.prototype, 'append');
+
+    void enterText(fixture, 'address', 'H');
+    void enterText(fixture, 'address', 'Ha');
+    await enterText(fixture, 'address', 'Hau');
+
+    // The constructor also calls append, but without a container.
+    expect(append.mock.calls.filter(([container]) => container)).toHaveLength(1);
   });
 
   it('shows no error when download is triggered with missing required fields', async () => {
