@@ -1,4 +1,18 @@
-import { clampQrBox, fitCanvas, MAX_CANVAS_PIXELS, placeQrCode } from './wallpaper';
+import { carryOverQrBox, clampQrBox, fitCanvas, MAX_CANVAS_PIXELS, placeQrCode } from './wallpaper';
+
+describe('carryOverQrBox', () => {
+  it('keeps the relative position and size on a background with another resolution', () => {
+    expect(carryOverQrBox({ size: 400, left: 100, top: 1000 }, { width: 1000, height: 2000 }, { width: 2000, height: 4000 }))
+      .toEqual({ size: 800, left: 200, top: 2000 });
+  });
+
+  it('keeps the code on a background with another aspect ratio', () => {
+    const box = carryOverQrBox({ size: 1000, left: 0, top: 1000 }, { width: 1000, height: 2000 }, { width: 2000, height: 1000 });
+    expect(box.size).toBe(1000);
+    expect(box.top + box.size).toBeLessThanOrEqual(1000);
+    expect(box.left).toBe(500);
+  });
+});
 
 describe('clampQrBox', () => {
   it('leaves a box inside the image unchanged', () => {

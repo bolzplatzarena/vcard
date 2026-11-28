@@ -1,3 +1,12 @@
+// Bundled backgrounds in src/assets/wallpapers: <id>.jpg (1290x2796) and <id>-thumb.jpg for the picker.
+export const WALLPAPER_PRESETS = [
+  { id: 'nacht', name: 'Nacht' },
+  { id: 'abendrot', name: 'Abendrot' },
+  { id: 'salbei', name: 'Salbei' },
+  { id: 'duenen', name: 'Dünen' },
+  { id: 'lagune', name: 'Lagune' },
+] as const;
+
 export interface QrPlacement {
   size: number;
   left: number;
@@ -37,4 +46,16 @@ export function placeQrCode(width: number, height: number): QrPlacement {
     left: Math.round((width - size) / 2),
     top: Math.round(Math.min(centerY - size / 2, height - size)),
   };
+}
+
+// Moves the QR code to another background at the same relative spot and size, so switching keeps the user's layout.
+export function carryOverQrBox(
+  box: QrPlacement,
+  from: { width: number; height: number },
+  to: { width: number; height: number },
+): QrPlacement {
+  const size = (box.size / Math.min(from.width, from.height)) * Math.min(to.width, to.height);
+  const centerX = ((box.left + box.size / 2) / from.width) * to.width;
+  const centerY = ((box.top + box.size / 2) / from.height) * to.height;
+  return clampQrBox({ size, left: centerX - size / 2, top: centerY - size / 2 }, to.width, to.height);
 }

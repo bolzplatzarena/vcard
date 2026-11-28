@@ -5,7 +5,7 @@ import QRCodeStyling, { Options } from 'qr-code-styling';
 import { debounceTime } from 'rxjs';
 import { buildVCard, Contact, toQrData } from './vcard';
 import { saveFile } from './save-file';
-import { clampQrBox, fitCanvas, placeQrCode } from './wallpaper';
+import { carryOverQrBox, clampQrBox, fitCanvas, placeQrCode, QrPlacement, WALLPAPER_PRESETS } from './wallpaper';
 
 // pink-600, the accent color of the UI (see styles.css).
 const ACCENT_COLOR = '#db2777';
@@ -72,6 +72,13 @@ export class AppComponent implements OnInit {
   };
 
   protected readonly advancedEnabled = signal(false);
+  protected readonly presets = WALLPAPER_PRESETS;
+  // A preset id or 'photo' for the user's own picture.
+  protected readonly background = signal<string>(WALLPAPER_PRESETS[0].id);
+  // While a background loads, further picks wait; two at once would both rebuild the same canvas.
+  protected readonly loading = signal(false);
+  // Where the user left the QR code, carried over when the background changes.
+  private qrBox?: { box: QrPlacement; width: number; height: number };
 
   constructor() {
     // The banner shortens the scroll area from below; scroll along so what was visible there stays visible.
@@ -159,6 +166,33 @@ export class AppComponent implements OnInit {
     return new QRCodeStyling({ ...config, data: toQrData(buildVCard(this.form.getRawValue())) });
   }
 
+  // Opens the wallpaper view with the last chosen preset; own photos are picked from there.
+  protected openWallpaper(): Promise<void> {
+    const preset = this.presets.find(p => p.id === this.background()) ?? this.presets[0];
+    return this.choosePreset(preset.id);
+  }
+
+  protected choosePreset(id: string): Promise<void> {
+    return this.switchBackground('Das Hintergrundbild konnte nicht geladen werden.', id, async () => {
+      const response = await fetch(`assets/wallpapers/${id}.jpg`);
+      if (!response.ok) {
+        throw new Error(`Preset ${id} could not be loaded: ${response.status}`);
+      }
+      return response.blob();
+    });
+  }
+
+  private switchBackground(message: string, selection: string, load: () => Promise<Blob>): Promise<void> {
+    if (this.loading()) {
+      return Promise.resolve();
+    }
+    this.loading.set(true);
+    return this.report(message, async () => {
+      await this.generateAdvanced(await load());
+      this.background.set(selection);
+    }).finally(() => this.loading.set(false));
+  }
+
   protected openBackgroundPicker(): void {
     if (this.form.invalid) {
       return;
@@ -178,13 +212,14 @@ export class AppComponent implements OnInit {
       this.error.set('Bitte wähle eine Bilddatei aus.');
       return Promise.resolve();
     }
-    return this.report(
+    return this.switchBackground(
       'Das Hintergrundbild konnte nicht erstellt werden. Bitte versuche ein anderes Bild (JPG oder PNG).',
-      () => this.generateAdvanced(file),
+      'photo',
+      () => Promise.resolve(file),
     );
   }
 
-  private async generateAdvanced(backgroundFile: File): Promise<void> {
+  private async generateAdvanced(backgroundFile: Blob): Promise<void> {
     if (this.form.invalid) {
       return;
     }
@@ -231,7 +266,8 @@ export class AppComponent implements OnInit {
     });
     // Only the corners: they scale proportionally, side handles would distort the code.
     qrImage.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false, mtr: false });
-    const { size, left, top } = placeQrCode(width, height);
+    const { size, left, top } = this.qrBox ? carryOverQrBox(this.qrBox.box, this.qrBox, { width, height }) : placeQrCode(width, height);
+    this.qrBox = { box: { size, left, top }, width, height };
     qrImage.scale(size / maxSize);
     qrImage.setPositionByOrigin(new Point(left, top), 'left', 'top');
 
@@ -244,6 +280,7 @@ export class AppComponent implements OnInit {
       qrImage.scale(box.size / maxSize);
       qrImage.setPositionByOrigin(new Point(box.left, box.top), 'left', 'top');
       qrImage.setCoords();
+      this.qrBox = { box, width, height };
     };
     fullCanvas.on('object:moving', clampToImage);
     fullCanvas.on('object:scaling', clampToImage);
@@ -281,5 +318,7 @@ export class AppComponent implements OnInit {
     this.advancedEnabled.set(false);
     void this.fullFabricCanvas?.dispose();
     this.fullFabricCanvas = undefined;
+    // The next visit starts with the default placement again.
+    this.qrBox = undefined;
   }
 }
