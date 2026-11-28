@@ -1,6 +1,6 @@
 import { ErrorHandler } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FabricImage } from 'fabric';
+import { FabricImage, filters } from 'fabric';
 import QRCodeStyling from 'qr-code-styling';
 import { AppComponent } from './app.component';
 
@@ -131,6 +131,26 @@ describe('AppComponent error handling', () => {
     getChips()[1].click();
     fixture.detectChanges();
     expect(getChips().map(b => b.getAttribute('aria-pressed'))).toEqual(['false', 'true', 'false', 'false', 'false', 'false', 'false']);
+  });
+
+  it('applies the chosen filter to the shown background and blocks other choices meanwhile', async () => {
+    const fixture = await createComponent();
+    const image = new FabricImage(document.createElement('canvas'));
+    const applyFilters = vi.spyOn(image, 'applyFilters').mockImplementation(() => undefined);
+    const canvas = { requestRenderAll: vi.fn() };
+    Object.assign(fixture.componentInstance, { backgroundImage: image, fullFabricCanvas: canvas });
+    const getChips = (): HTMLButtonElement[] => [...fixture.nativeElement.querySelectorAll('[aria-label=Filter] button')] as HTMLButtonElement[];
+
+    getChips()[2].click();
+    fixture.detectChanges();
+    expect(getChips().every(chip => chip.disabled)).toBe(true);
+    expect(applyFilters).not.toHaveBeenCalled();
+
+    await vi.waitFor(() => expect(canvas.requestRenderAll).toHaveBeenCalled());
+    fixture.detectChanges();
+    expect(image.filters).toEqual([expect.any(filters.Sepia)]);
+    expect(getChips().some(chip => chip.disabled)).toBe(false);
+    expect(getAlert(fixture)).toBeNull();
   });
 
   it('opens the wallpaper view with the preset and shows a message when it cannot be loaded', async () => {

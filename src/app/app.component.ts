@@ -325,13 +325,22 @@ export class AppComponent implements OnInit {
   }
 
   protected applyFilter(id: PhotoFilterId): Promise<void> {
-    return this.report('Der Filter konnte nicht angewendet werden.', () => {
-      this.photoFilter.set(id);
-      if (this.backgroundImage && this.fullFabricCanvas) {
-        applyPhotoFilter(this.backgroundImage, id);
-        this.fullFabricCanvas.requestRenderAll();
-      }
-    });
+    if (this.loading()) {
+      return Promise.resolve();
+    }
+    this.photoFilter.set(id);
+    const image = this.backgroundImage;
+    const canvas = this.fullFabricCanvas;
+    if (!image || !canvas) {
+      return Promise.resolve();
+    }
+    this.loading.set(true);
+    return this.report('Der Filter konnte nicht angewendet werden.', async () => {
+      // Filtering blocks the main thread; wait until the pressed chip and the busy state are painted.
+      await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve)));
+      applyPhotoFilter(image, id);
+      canvas.requestRenderAll();
+    }).finally(() => this.loading.set(false));
   }
 
   private async loadImage(blob: Blob): Promise<FabricImage> {

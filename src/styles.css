@@ -45,9 +45,9 @@
     @apply shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-gray-700 transition-colors aria-pressed:border-pink-600 aria-pressed:bg-pink-600 aria-pressed:text-white disabled:cursor-wait;
   }
 
-  /* Color choice; the selected one ringed. */
+  /* Color choice; the selected one ringed. 44px touch target, the color fills only the inner 32px. */
   .swatch {
-    @apply size-8 rounded-full ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-gray-800;
+    @apply size-11 rounded-full bg-clip-content p-1.5 aria-pressed:ring-2 aria-pressed:ring-gray-800;
   }
 
   /* Background choice in the wallpaper view: small phone-shaped preview, the selected one ringed. */

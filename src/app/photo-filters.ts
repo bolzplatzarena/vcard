@@ -1,5 +1,6 @@
 import { Canvas2dFilterBackend, FabricImage, filters, setFilterBackend } from 'fabric';
 
+// Global: applies to every Fabric filter in the app.
 // The WebGL backend splits images above its texture size (4096 px) into tiles and phones' limits vary;
 // the canvas backend handles every size the canvas itself allows.
 setFilterBackend(new Canvas2dFilterBackend());
