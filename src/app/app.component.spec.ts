@@ -1,6 +1,6 @@
 import { ErrorHandler } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FabricImage } from 'fabric';
+import { FabricImage, filters } from 'fabric';
 import QRCodeStyling from 'qr-code-styling';
 import { AppComponent } from './app.component';
 
@@ -111,6 +111,85 @@ describe('AppComponent error handling', () => {
 
     // The constructor also calls append, but without a container.
     expect(append.mock.calls.filter(([container]) => container)).toHaveLength(1);
+  });
+
+  it('offers the preset backgrounds and an own photo, the first preset preselected', async () => {
+    const fixture = await createComponent();
+    const choices = [...fixture.nativeElement.querySelectorAll('[aria-label="Hintergrund wählen"] button')] as HTMLButtonElement[];
+    expect(choices.map(b => b.getAttribute('aria-label'))).toEqual([
+      'Nacht', 'Abendrot', 'Salbei', 'Dünen', 'Lagune', 'Aurora', 'Bauhaus', 'Orbit', 'Pastell', 'Eigenes Foto',
+    ]);
+    expect(choices.map(b => b.getAttribute('aria-pressed'))).toEqual(['true', ...Array<string>(9).fill('false')]);
+  });
+
+  it('offers the photo filters with Original preselected and keeps the choice', async () => {
+    const fixture = await createComponent();
+    const getChips = (): HTMLButtonElement[] => [...fixture.nativeElement.querySelectorAll('[aria-label=Filter] button')] as HTMLButtonElement[];
+    expect(getChips().map(b => b.textContent.trim())).toEqual(['Original', 'Schwarz-Weiß', 'Sepia', 'Vintage', 'Polaroid', 'Gedimmt', 'Pink']);
+    expect(getChips()[0].getAttribute('aria-pressed')).toBe('true');
+
+    getChips()[1].click();
+    fixture.detectChanges();
+    expect(getChips().map(b => b.getAttribute('aria-pressed'))).toEqual(['false', 'true', 'false', 'false', 'false', 'false', 'false']);
+  });
+
+  it('applies the chosen filter to the shown background and blocks other choices meanwhile', async () => {
+    const fixture = await createComponent();
+    const image = new FabricImage(document.createElement('canvas'));
+    const applyFilters = vi.spyOn(image, 'applyFilters').mockImplementation(() => undefined);
+    const canvas = { requestRenderAll: vi.fn() };
+    Object.assign(fixture.componentInstance, { backgroundImage: image, fullFabricCanvas: canvas });
+    const getChips = (): HTMLButtonElement[] => [...fixture.nativeElement.querySelectorAll('[aria-label=Filter] button')] as HTMLButtonElement[];
+
+    getChips()[2].click();
+    fixture.detectChanges();
+    expect(getChips().every(chip => chip.disabled)).toBe(true);
+    expect(applyFilters).not.toHaveBeenCalled();
+
+    await vi.waitFor(() => expect(canvas.requestRenderAll).toHaveBeenCalled());
+    fixture.detectChanges();
+    expect(image.filters).toEqual([expect.any(filters.Sepia)]);
+    expect(getChips().some(chip => chip.disabled)).toBe(false);
+    expect(getAlert(fixture)).toBeNull();
+  });
+
+  it('opens the wallpaper view with the preset and shows a message when it cannot be loaded', async () => {
+    localStorage.setItem('data', validContact);
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 404 }));
+    const fixture = await createComponent();
+
+    const open = [...fixture.nativeElement.querySelectorAll('nav button')] as HTMLButtonElement[];
+    open.find(b => b.textContent.includes('Hintergrundbild'))?.click();
+    await new Promise(resolve => setTimeout(resolve));
+    fixture.detectChanges();
+
+    expect(fetch).toHaveBeenCalledWith('assets/wallpapers/nacht.jpg');
+    expect(getAlert(fixture)?.textContent).toContain('Das Hintergrundbild konnte nicht geladen werden.');
+  });
+
+  it('redraws the preview in the chosen QR style and remembers it', async () => {
+    localStorage.setItem('data', validContact);
+    const fixture = await createComponent();
+    const append = vi.spyOn(QRCodeStyling.prototype, 'append');
+    const getButton = (group: string, label: string): HTMLButtonElement =>
+      ([...fixture.nativeElement.querySelectorAll(`[aria-label=${group}] button`)] as HTMLButtonElement[])
+        .find(b => (b.getAttribute('aria-label') ?? b.textContent.trim()) === label) as HTMLButtonElement;
+
+    getButton('QR-Stil', 'Eckig').click();
+    getButton('QR-Farbe', 'Schwarz').click();
+    fixture.detectChanges();
+
+    expect(append.mock.calls.filter(([container]) => container)).toHaveLength(2);
+    expect(JSON.parse(localStorage.getItem('qrStyle') ?? 'null')).toEqual({ shape: 'eckig', color: 'schwarz' });
+    expect(getButton('QR-Stil', 'Eckig').getAttribute('aria-pressed')).toBe('true');
+    expect(getButton('QR-Farbe', 'Schwarz').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('restores the stored QR style', async () => {
+    localStorage.setItem('qrStyle', JSON.stringify({ shape: 'elegant', color: 'gruen' }));
+    const fixture = await createComponent();
+    const pressed = [...fixture.nativeElement.querySelectorAll('[aria-pressed=true]')] as HTMLElement[];
+    expect(pressed.map(b => b.getAttribute('aria-label') ?? b.textContent.trim())).toEqual(expect.arrayContaining(['Elegant', 'Grün']));
   });
 
   it('shows no error when download is triggered with missing required fields', async () => {

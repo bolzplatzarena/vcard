@@ -4,8 +4,10 @@ import { Canvas as FabricCanvas, FabricImage, Point } from 'fabric';
 import QRCodeStyling, { Options } from 'qr-code-styling';
 import { debounceTime } from 'rxjs';
 import { buildVCard, Contact, toQrData } from './vcard';
+import { applyPhotoFilter, PHOTO_FILTERS, PhotoFilterId } from './photo-filters';
+import { DEFAULT_QR_STYLE, parseQrStyle, QR_COLORS, QR_SHAPES, QrStyle, toQrOptions } from './qr-style';
 import { saveFile } from './save-file';
-import { clampQrBox, fitCanvas, placeQrCode } from './wallpaper';
+import { carryOverQrBox, clampQrBox, fitCanvas, placeQrCode, QrPlacement, WALLPAPER_PRESETS } from './wallpaper';
 
 // pink-600, the accent color of the UI (see styles.css).
 const ACCENT_COLOR = '#db2777';
@@ -43,35 +45,40 @@ export class AppComponent implements OnInit {
     mobile: ['', [Validators.required]],
     address: [''],
   });
-  protected readonly qrConfig: Partial<Options> = {
-    // Shown at 200px; 3x keeps it sharp on phone displays and gives the download a usable resolution.
-    width: 600,
-    height: 600,
-    margin: 0,
-    dotsOptions: {
-      color: '#1977f3',
-      type: 'dots',
-    },
-    // Finder patterns drawn as separate dots break the 1:1:3:1:1 ratio scanners look for,
-    // which fails at high resolutions; solid corners keep the code readable.
-    cornersSquareOptions: {
-      color: '#1977f3',
-      type: 'extra-rounded',
-    },
-    cornersDotOptions: {
-      color: '#1977f3',
-      type: 'dot',
-    },
-    backgroundOptions: {
-      color: 'transparent',
-    },
-    imageOptions: {
-      crossOrigin: 'anonymous',
-      margin: 0,
-    },
-  };
+  protected readonly qrShapes = QR_SHAPES;
+  protected readonly qrColors = QR_COLORS;
+  protected readonly qrStyle = signal<QrStyle>(DEFAULT_QR_STYLE);
+
+  private get qrConfig(): Partial<Options> {
+    return {
+      // Shown at 200px; 3x keeps it sharp on phone displays and gives the download a usable resolution.
+      width: 600,
+      height: 600,
+      // White with a quiet zone (same 6% as the wallpaper): the saved code stays scannable in dark galleries.
+      margin: 36,
+      ...toQrOptions(this.qrStyle()),
+      backgroundOptions: {
+        color: '#ffffff',
+      },
+      imageOptions: {
+        crossOrigin: 'anonymous',
+        margin: 0,
+      },
+    };
+  }
 
   protected readonly advancedEnabled = signal(false);
+  protected readonly presets = WALLPAPER_PRESETS;
+  // A preset id or 'photo' for the user's own picture.
+  protected readonly background = signal<string>(WALLPAPER_PRESETS[0].id);
+  // While a background loads, further picks wait; two at once would both rebuild the same canvas.
+  protected readonly loading = signal(false);
+  // Where the user left the QR code, carried over when the background changes.
+  private qrBox?: { box: QrPlacement; width: number; height: number };
+  protected readonly photoFilters = PHOTO_FILTERS;
+  // Stays selected when the background changes, so trying backgrounds keeps the chosen look.
+  protected readonly photoFilter = signal<PhotoFilterId>('original');
+  private backgroundImage?: FabricImage;
 
   constructor() {
     // The banner shortens the scroll area from below; scroll along so what was visible there stays visible.
@@ -92,6 +99,11 @@ export class AppComponent implements OnInit {
     } catch {
       // Corrupt entry or blocked storage: start with an empty form; the next change overwrites the entry.
     }
+    try {
+      this.qrStyle.set(parseQrStyle(JSON.parse(localStorage.getItem('qrStyle') ?? 'null')));
+    } catch {
+      // Same as above: keep the default style.
+    }
     this.updatePreview();
     this.form.valueChanges.subscribe(value => {
       try {
@@ -102,6 +114,16 @@ export class AppComponent implements OnInit {
     });
     // Drawing takes noticeably long on slow phones, so wait for a pause in typing.
     this.form.valueChanges.pipe(debounceTime(150)).subscribe(() => this.updatePreview());
+  }
+
+  protected changeQrStyle(change: Partial<QrStyle>): void {
+    this.qrStyle.update(style => ({ ...style, ...change }));
+    try {
+      localStorage.setItem('qrStyle', JSON.stringify(this.qrStyle()));
+    } catch {
+      // Storage full or blocked: the style applies, it just isn't remembered.
+    }
+    this.updatePreview();
   }
 
   // Live preview: the QR code follows the form as soon as all required fields are valid.
@@ -159,6 +181,33 @@ export class AppComponent implements OnInit {
     return new QRCodeStyling({ ...config, data: toQrData(buildVCard(this.form.getRawValue())) });
   }
 
+  // Opens the wallpaper view with the last chosen preset; own photos are picked from there.
+  protected openWallpaper(): Promise<void> {
+    const preset = this.presets.find(p => p.id === this.background()) ?? this.presets[0];
+    return this.choosePreset(preset.id);
+  }
+
+  protected choosePreset(id: string): Promise<void> {
+    return this.switchBackground('Das Hintergrundbild konnte nicht geladen werden.', id, async () => {
+      const response = await fetch(`assets/wallpapers/${id}.jpg`);
+      if (!response.ok) {
+        throw new Error(`Preset ${id} could not be loaded: ${response.status}`);
+      }
+      return response.blob();
+    });
+  }
+
+  private switchBackground(message: string, selection: string, load: () => Promise<Blob>): Promise<void> {
+    if (this.loading()) {
+      return Promise.resolve();
+    }
+    this.loading.set(true);
+    return this.report(message, async () => {
+      await this.generateAdvanced(await load());
+      this.background.set(selection);
+    }).finally(() => this.loading.set(false));
+  }
+
   protected openBackgroundPicker(): void {
     if (this.form.invalid) {
       return;
@@ -178,20 +227,24 @@ export class AppComponent implements OnInit {
       this.error.set('Bitte wähle eine Bilddatei aus.');
       return Promise.resolve();
     }
-    return this.report(
+    return this.switchBackground(
       'Das Hintergrundbild konnte nicht erstellt werden. Bitte versuche ein anderes Bild (JPG oder PNG).',
-      () => this.generateAdvanced(file),
+      'photo',
+      () => Promise.resolve(file),
     );
   }
 
-  private async generateAdvanced(backgroundFile: File): Promise<void> {
+  private async generateAdvanced(backgroundFile: Blob): Promise<void> {
     if (this.form.invalid) {
       return;
     }
 
-    const background = await this.loadImage(backgroundFile);
-    const { width, height, scale: imageScale } = fitCanvas(background.width, background.height);
-    background.set({ scaleX: imageScale, scaleY: imageScale, selectable: false, evented: false });
+    const loaded = await this.loadImage(backgroundFile);
+    const { width, height, scale: imageScale } = fitCanvas(loaded.width, loaded.height);
+    // Filters work on the image at its own resolution, so large photos are shrunk first (iOS canvas limit).
+    const background = imageScale < 1 ? new FabricImage(this.createScaledCopy(loaded.getElement(), width, height)) : loaded;
+    background.set({ selectable: false, evented: false });
+    applyPhotoFilter(background, this.photoFilter());
     // Fabric 7 positions objects by their center by default; anchor at the top-left corner instead.
     background.setPositionByOrigin(new Point(0, 0), 'left', 'top');
 
@@ -231,7 +284,8 @@ export class AppComponent implements OnInit {
     });
     // Only the corners: they scale proportionally, side handles would distort the code.
     qrImage.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false, mtr: false });
-    const { size, left, top } = placeQrCode(width, height);
+    const { size, left, top } = this.qrBox ? carryOverQrBox(this.qrBox.box, this.qrBox, { width, height }) : placeQrCode(width, height);
+    this.qrBox = { box: { size, left, top }, width, height };
     qrImage.scale(size / maxSize);
     qrImage.setPositionByOrigin(new Point(left, top), 'left', 'top');
 
@@ -244,6 +298,7 @@ export class AppComponent implements OnInit {
       qrImage.scale(box.size / maxSize);
       qrImage.setPositionByOrigin(new Point(box.left, box.top), 'left', 'top');
       qrImage.setCoords();
+      this.qrBox = { box, width, height };
     };
     fullCanvas.on('object:moving', clampToImage);
     fullCanvas.on('object:scaling', clampToImage);
@@ -252,7 +307,40 @@ export class AppComponent implements OnInit {
     fullCanvas.setActiveObject(qrImage);
     fullCanvas.renderAll();
     this.fullFabricCanvas = fullCanvas;
+    this.backgroundImage = background;
     this.advancedEnabled.set(true);
+  }
+
+  private createScaledCopy(source: CanvasImageSource, width: number, height: number): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Canvas 2D context unavailable');
+    }
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(source, 0, 0, width, height);
+    return canvas;
+  }
+
+  protected applyFilter(id: PhotoFilterId): Promise<void> {
+    if (this.loading()) {
+      return Promise.resolve();
+    }
+    this.photoFilter.set(id);
+    const image = this.backgroundImage;
+    const canvas = this.fullFabricCanvas;
+    if (!image || !canvas) {
+      return Promise.resolve();
+    }
+    this.loading.set(true);
+    return this.report('Der Filter konnte nicht angewendet werden.', async () => {
+      // Filtering blocks the main thread; wait until the pressed chip and the busy state are painted.
+      await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve)));
+      applyPhotoFilter(image, id);
+      canvas.requestRenderAll();
+    }).finally(() => this.loading.set(false));
   }
 
   private async loadImage(blob: Blob): Promise<FabricImage> {
@@ -281,5 +369,8 @@ export class AppComponent implements OnInit {
     this.advancedEnabled.set(false);
     void this.fullFabricCanvas?.dispose();
     this.fullFabricCanvas = undefined;
+    this.backgroundImage = undefined;
+    // The next visit starts with the default placement again.
+    this.qrBox = undefined;
   }
 }
